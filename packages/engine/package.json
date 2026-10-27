@@ -18,7 +18,7 @@
   },
   "files": ["dist"],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "jsonc-parser": "3.3.1",

@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "bundle": "esbuild src/main.ts --bundle --platform=node --target=node20 --format=esm --conditions=development --main-fields=module,main --outfile=dist/index.js --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --legal-comments=linked"
+    "bundle": "esbuild src/main.ts --bundle --platform=node --target=node22 --format=esm --conditions=development --main-fields=module,main --outfile=dist/index.js --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --legal-comments=linked"
   },
   "dependencies": {
     "@dome-security/engine": "workspace:*",
