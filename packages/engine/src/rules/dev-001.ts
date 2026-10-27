@@ -13,7 +13,7 @@ export default defineRule(
     summary:
       '`.devcontainer/devcontainer.json` `initializeCommand`, `onCreateCommand`, `postCreateCommand`, `postStartCommand` or `postAttachCommand` added or changed.',
     reasons: {
-      hostCommand: 'initializeCommand runs on the host machine, outside the container, before the container starts.',
+      hostCommand: 'The initializeCommand hook runs on the host machine, outside the container, before the container starts.',
       lifecycle: 'A dev container command runs automatically when the container is created, started or attached.',
       payload: 'A dev container command downloads and runs code, or runs a file that is not a script with Node.',
     },
