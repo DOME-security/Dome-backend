@@ -21,3 +21,9 @@ describe('DOME-ENV-001', () => {
     expect(await runRule(rule, files)).toEqual([]);
   });
 });
+
+describe('DOME-ENV-001 scope', () => {
+  it('skips vendored release bundles such as .yarn/releases', async () => {
+    expect(await runRule(rule, { '.yarn/releases/yarn-4.cjs': sender, 'dist/server.js': sender })).toEqual([]);
+  });
+});

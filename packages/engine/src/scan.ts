@@ -133,6 +133,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
       targets,
       tree,
       intel,
+      maxFileBytes: maxBytes,
       readText: (p) => files.readText(p),
       readBytes: (p) => files.readBytes(p),
       readBaseText: async (p) => (baseFiles ? baseFiles.readText(p) : undefined),
@@ -157,6 +158,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const findings = await grade({
     findings: raw,
     config,
+    scope: options.diff ? 'diff' : 'full',
     hashOf: async (p) => {
       const bytes = await files.readBytes(p);
       return bytes ? sha256Hex(bytes) : undefined;

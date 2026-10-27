@@ -20,7 +20,7 @@ export default defineRule(
   async (ctx) => {
     if (ctx.intel.markers.length === 0) return;
     const markers = ctx.intel.markers.map((m) => Buffer.from(m, 'utf8'));
-    for (const { path } of targetsWhere(ctx, () => true)) {
+    for (const { path } of targetsWhere(ctx, (p) => (ctx.tree.get(p)?.size ?? 0) <= ctx.maxFileBytes)) {
       const bytes = await ctx.readBytes(path);
       if (!bytes) continue;
       const buf = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);

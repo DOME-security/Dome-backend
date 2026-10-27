@@ -18,3 +18,9 @@ describe('DOME-GIT-002', () => {
     expect(await runRule(rule, { 'package.json': pkg })).toHaveLength(2);
   });
 });
+
+describe('DOME-GIT-002 scope', () => {
+  it('ignores hooks nested in subfolders, which hook managers never install', async () => {
+    expect(await runRule(rule, { 'tests/integration/x/.husky/pre-commit': 'echo DOME_FIXTURE' })).toEqual([]);
+  });
+});

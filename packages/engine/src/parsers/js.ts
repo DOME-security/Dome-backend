@@ -166,7 +166,11 @@ export interface ModuleTail {
   offset: number;
   /** Longest run of spaces/tabs between the export statement and that code. */
   padding: number;
+  /** The tail starts with a declaration, import/export or another `module.exports` assignment. */
+  declaration: boolean;
 }
+
+const DECLARATION_START = new Set(['function', 'class', 'export', 'import', 'const', 'let', 'var', 'async', 'interface', 'type']);
 
 /**
  * Finds code that follows a config module's `export default …` or
@@ -177,12 +181,14 @@ export function findModuleTail(text: string, tokens: Token[] = tokenize(text)): 
   const sig = significant(tokens);
   let depth = 0;
   let begin = -1;
+  let exportDefault = false;
   for (let k = 0; k < sig.length; k++) {
     const t = sig[k]!;
     if (t.type === 'punct' && OPEN.has(t.value)) depth++;
     else if (t.type === 'punct' && CLOSE.has(t.value)) depth = Math.max(0, depth - 1);
     else if (depth === 0 && t.type === 'ident' && t.value === 'export' && sig[k + 1]?.value === 'default') {
       begin = k + 2;
+      exportDefault = true;
       break;
     } else if (
       depth === 0 &&
@@ -198,7 +204,8 @@ export function findModuleTail(text: string, tokens: Token[] = tokenize(text)): 
   }
   if (begin === -1 || begin >= sig.length) return undefined;
 
-  const isDeclaration = ['function', 'class', 'async'].includes(sig[begin]!.value);
+  // `export default function f() {}` ends at its closing brace; `module.exports = function () {};` is an expression.
+  const isDeclaration = exportDefault && ['function', 'class', 'async'].includes(sig[begin]!.value);
   let end = -1;
   depth = 0;
   let sawBlock = false;
@@ -232,10 +239,15 @@ export function findModuleTail(text: string, tokens: Token[] = tokenize(text)): 
       }
     }
   }
+  while (end !== -1 && end < sig.length && sig[end]!.value === ';') end++;
   if (end === -1 || end >= sig.length) return undefined;
   const tail = sig[end]!;
   const gapStart = sig[end - 1]!.end;
-  return { offset: tail.start, padding: longestBlankRun(text, gapStart, tail.start) };
+  const declaration =
+    (tail.type === 'ident' && DECLARATION_START.has(tail.value)) ||
+    (tail.value === 'module' && sig[end + 1]?.value === '.' && sig[end + 2]?.value === 'exports') ||
+    (tail.value === 'exports' && sig[end + 1]?.value === '.');
+  return { offset: tail.start, padding: longestBlankRun(text, gapStart, tail.start), declaration };
 }
 
 function newlineBetween(text: string, from: number, to: number): boolean {

@@ -13,7 +13,7 @@ const finding = (ruleId: string, severity: Severity, path: string): Finding => (
 });
 
 const run = (findings: Finding[], config: DomeConfig = EMPTY_CONFIG, hashes: Record<string, string> = {}) =>
-  grade({ findings, config, hashOf: async (p) => hashes[p] });
+  grade({ findings, config, scope: 'diff', hashOf: async (p) => hashes[p] });
 
 describe('grade', () => {
   it('keeps a folder-open task alone at review', async () => {
@@ -94,5 +94,17 @@ describe('grade: folding', () => {
     const out = await run([runner, finding('DOME-AST-001', 'review', 'public/a.woff2')]);
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ ruleId: 'DOME-VSC-004', relatedRules: ['DOME-AST-001'], severity: 'block' });
+  });
+});
+
+describe('grade: scope', () => {
+  it('does not combine findings across a whole repository in a full scan', async () => {
+    const out = await grade({
+      findings: [finding('DOME-GHA-001', 'review', '.github/workflows/a.yml'), finding('DOME-CFG-001', 'review', 'website/vite.config.mjs')],
+      config: EMPTY_CONFIG,
+      scope: 'full',
+      hashOf: async () => undefined,
+    });
+    expect(out.map((f) => f.severity)).toEqual(['review', 'review']);
   });
 });

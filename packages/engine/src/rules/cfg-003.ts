@@ -1,6 +1,6 @@
 import { findCodeConstruction, tokenize } from '../parsers/js.js';
 import { defineRule, targetsWhere } from './rule.js';
-import { isServerSideCode, isTestPath, REFS } from './shared.js';
+import { isServerSideCode, isTestPath, isVendored, REFS } from './shared.js';
 
 export default defineRule(
   {
@@ -23,7 +23,7 @@ export default defineRule(
     },
   },
   async (ctx) => {
-    for (const { path } of targetsWhere(ctx, (p) => isServerSideCode(p) && !isTestPath(p) && !p.includes('node_modules/'))) {
+    for (const { path } of targetsWhere(ctx, (p) => isServerSideCode(p) && !isTestPath(p) && !isVendored(p))) {
       const text = await ctx.readText(path);
       if (text === undefined) continue;
       if (!/eval|Function|runIn|compileFunction|Script|detached/.test(text)) continue;

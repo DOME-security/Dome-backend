@@ -23,6 +23,8 @@ export function isIndicatorRule(ruleId: string): boolean {
 export interface GradeInput {
   findings: Finding[];
   config: DomeConfig;
+  /** Payload and surface findings only combine within one change (a diff scan). */
+  scope: 'full' | 'diff';
   /** SHA-256 of a file in the scanned tree, for hash-pinned exceptions. */
   hashOf(path: string): Promise<string | undefined>;
 }
@@ -36,12 +38,12 @@ function sameLocation(a: Location, b: Location): boolean {
  *
  * 1. `severity` overrides from `.dome.yml` (never lowering an indicator block);
  * 2. fixture paths and hash-pinned `allow` entries drop to info;
- * 3. a payload plus any auto-run surface escalates to block, and the surface
- *    findings are folded into the combined finding;
+ * 3. in a diff scan, a payload plus any auto-run surface in the same change
+ *    escalates to block, and the surface findings are folded into it;
  * 4. a folder-open task, automatic tasks turned on and a hidden `.vscode`
  *    together escalate to block.
  */
-export async function grade({ findings, config, hashOf }: GradeInput): Promise<Finding[]> {
+export async function grade({ findings, config, scope, hashOf }: GradeInput): Promise<Finding[]> {
   const isFixture = fixtureMatcher(config);
   const out: Finding[] = [];
 
@@ -86,7 +88,7 @@ export async function grade({ findings, config, hashOf }: GradeInput): Promise<F
 
   const surfaces = out.filter((f) => active(f) && !absorbed.has(f) && AUTORUN_SURFACES.has(f.ruleId) && f.severity !== 'info');
 
-  if (surfaces.length > 0) {
+  if (scope === 'diff' && surfaces.length > 0) {
     for (const f of out) {
       if (!active(f) || absorbed.has(f) || !PAYLOAD_PARTNERS.has(f.ruleId) || f.severity === 'block' || f.severity === 'info') continue;
       f.severity = 'block';
