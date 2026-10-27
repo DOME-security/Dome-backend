@@ -19,7 +19,7 @@ Part of the Dome Security GitHub org, alongside `dome-frontend` (the web app) an
 
 ## Status
 
-In design, pre-alpha. This README is the specification contributors build against during Stellar Wave, and the commands below describe the target behaviour. See [Roadmap](#roadmap) for the milestone order.
+Pre-alpha. Milestones M1 to M5 are implemented: the engine with 27 rules, the CLI, the GitHub Action, the API server, scan workers and the registry indexer. M6 (the org-wide GitHub App) is partly done; see [Roadmap](#roadmap). The registry contract schema in `packages/registry-client` is assumed and still has to be checked against `dome-contracts`. Rule behaviour is documented in [`docs/rules/`](docs/rules/README.md).
 
 ## Architecture
 
@@ -43,6 +43,8 @@ test/
 
 docs/
 ├── rules/            One page per rule: what, why, references, false positives
+├── api.md
+├── deployment.md
 ├── incident-response.md
 └── writing-a-rule.md
 
@@ -71,7 +73,7 @@ One TypeScript monorepo, with each package published or deployed on its own:
 
 > Contributions come through the Stellar Wave Program on Drips. Find an issue labelled `Stellar Wave`, apply in the [Drips Wave app](https://www.drips.network/wave) and wait to be assigned before starting. Every PR needs tests (inert fixtures only), docs for any new rule or endpoint, and a false-positive run for rule changes. See the [Drips Wave Terms and Rules](https://docs.drips.network/wave/terms-and-rules).
 
-Requirements: Node 20+, pnpm, Docker (for workers and PostgreSQL).
+Requirements: Node 22+, pnpm, Docker (for workers and PostgreSQL).
 
 ```bash
 git clone https://github.com/dome-security/dome-backend.git
@@ -91,7 +93,7 @@ pnpm test           # unit tests + fixtures
 pnpm test:corpus    # false-positive run against known-honest repos
 ```
 
-See `docs/writing-a-rule.md` for adding a rule and `docs/rules/` for per-rule reference pages. This repo has no `.vscode/tasks.json`, no install scripts, and its own `dome / scan` check is required on `main`.
+See [`docs/writing-a-rule.md`](docs/writing-a-rule.md) for adding a rule, [`docs/rules/`](docs/rules/README.md) for per-rule reference pages, [`docs/api.md`](docs/api.md) for the REST API, [`docs/deployment.md`](docs/deployment.md) for running the service and [`docs/incident-response.md`](docs/incident-response.md) for what to do after a finding. See also [CONTRIBUTING.md](CONTRIBUTING.md). This repo has no `.vscode/tasks.json`, no install scripts, and its own `dome / scan` check is required on `main`.
 
 ## Design principles
 
@@ -101,16 +103,16 @@ Dome reads untrusted repositories, so the engine is built to never become the at
 
 Each milestone builds on the one before. Summary:
 
-- [ ] **M1 Engine:** walker, git object reader, JSONC parser, finding model, text/JSON reporters, `autorun` rules
-- [ ] **M2 CLI + Action:** `dome scan`, the GitHub Action with job summary, labels, `report`/`enforce` modes
-- [ ] **M3 Payloads:** font header checks, JS tokenizer, config-tail detection, SARIF, fork-safe comment workflow
-- [ ] **M4 API + workers:** REST API, job queue, sandboxed workers, scan of public repos for the web app
-- [ ] **M5 Registry:** indexer, `registry-client`, `dome intel update`, attestation publishing
-- [ ] **M6 GitHub App:** org-wide install, scheduled sweeps, force-push/unsigned-commit alerts
+- [x] **M1 Engine:** walker, git object reader, JSONC parser, finding model, text/JSON reporters, `autorun` rules
+- [x] **M2 CLI + Action:** `dome scan`, the GitHub Action with job summary, labels, `report`/`enforce` modes (PR labels are not done yet)
+- [x] **M3 Payloads:** font header checks, JS tokenizer, config-tail detection, SARIF, fork-safe comment workflow
+- [x] **M4 API + workers:** REST API, job queue, sandboxed workers, scan of public repos for the web app
+- [x] **M5 Registry:** indexer, `registry-client`, `dome intel update`, attestation publishing
+- [ ] **M6 GitHub App:** org-wide install, scheduled sweeps, force-push/unsigned-commit alerts (private repos, scheduled sweeps and alerts are not done yet)
 
 ## Security
 
-Report vulnerabilities privately through **Report a vulnerability** on this repo. Do not open public issues for bypasses until a fix is released; we credit reporters. `main` requires signed commits, blocks force-pushes, and requires code-owner review for `.vscode/`, `.github/`, `package.json` and lockfiles. Never add real malware, real obfuscated payloads or live attacker URLs in an executable position: such PRs are closed and reported, and known-bad domains and hashes belong only in `packages/intel` data files.
+Report vulnerabilities privately through **Report a vulnerability** on this repo; see [SECURITY.md](SECURITY.md). Do not open public issues for bypasses until a fix is released; we credit reporters. `main` requires signed commits, blocks force-pushes, and requires code-owner review for `.vscode/`, `.github/`, `package.json` and lockfiles. Never add real malware, real obfuscated payloads or live attacker URLs in an executable position: such PRs are closed and reported, and known-bad domains and hashes belong only in `packages/intel` data files.
 
 ## License
 
