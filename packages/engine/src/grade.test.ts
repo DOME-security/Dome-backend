@@ -87,3 +87,12 @@ describe('grade', () => {
     expect(out.find((f) => f.ruleId === 'DOME-CFG-001')!.severity).toBe('review');
   });
 });
+
+describe('grade: folding', () => {
+  it('folds a fake font into the finding that runs it', async () => {
+    const runner: Finding = { ...finding('DOME-VSC-004', 'block', '.vscode/tasks.json'), locations: [{ path: '.vscode/tasks.json', line: 3 }, { path: 'public/a.woff2' }] };
+    const out = await run([runner, finding('DOME-AST-001', 'review', 'public/a.woff2')]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ ruleId: 'DOME-VSC-004', relatedRules: ['DOME-AST-001'], severity: 'block' });
+  });
+});

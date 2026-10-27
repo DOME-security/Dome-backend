@@ -30,7 +30,7 @@ describe('reporters', () => {
   it('writes a maintainer-facing markdown summary', async () => {
     const md = formatMarkdown(await result());
     expect(md).toContain('### 🔴 Dome: merge blocked');
-    expect(md).toContain('[DOME-VSC-001](https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-VSC-001.md) + [DOME-AST-001]');
+    expect(md).toContain('[DOME-VSC-004](https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-VSC-004.md) + [DOME-AST-001]');
     expect(md).toContain('**Do not check out this branch in VS Code, Cursor, or with `npm install`.**');
   });
 

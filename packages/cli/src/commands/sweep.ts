@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { cleanPath, FsSource, scan, SEVERITY_ORDER, type ScanResult, type Verdict } from '@dome-security/engine';
+import { cleanPath, FsSource, ruleLabel, scan, SEVERITY_ORDER, type ScanResult, type Verdict } from '@dome-security/engine';
 import { loadIntel } from '@dome-security/intel';
 import { UsageError, type Io } from '../io.js';
 
@@ -72,7 +72,7 @@ export async function runSweep(args: string[], io: Io): Promise<number> {
     io.stdout(`${result.verdict.toUpperCase().padEnd(10)} ${cleanPath(path.relative(root, repo) || '.')}\n`);
     for (const f of result.findings.filter((x) => SEVERITY_ORDER[x.severity] >= SEVERITY_ORDER.review)) {
       const where = f.locations.map((l) => cleanPath(l.path)).join(', ');
-      io.stdout(`           ${[...f.relatedRules, f.ruleId].join(' + ')}  ${where}\n`);
+      io.stdout(`           ${ruleLabel(f)}  ${where}\n`);
     }
   }
   io.stdout(
