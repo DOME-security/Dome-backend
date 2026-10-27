@@ -20,3 +20,4 @@ export {
   type ClonedRepo,
 } from './source/git.js';
 export type { FileSource, TreeEntry, EntryKind } from './source/types.js';
+export * from './report/index.js';
