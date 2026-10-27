@@ -1,0 +1,31 @@
+{
+  "name": "@dome-security/engine",
+  "version": "0.1.0",
+  "description": "Dome detection engine: reads repository files as text and bytes, never executes them.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dome-security/dome-backend.git",
+    "directory": "packages/engine"
+  },
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "jsonc-parser": "3.3.1",
+    "picomatch": "4.0.3",
+    "yaml": "2.8.1"
+  },
+  "devDependencies": {
+    "@types/picomatch": "4.0.2"
+  }
+}
