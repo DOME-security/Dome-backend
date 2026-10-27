@@ -9,6 +9,10 @@ import env001 from './env-001.js';
 import gha001 from './gha-001.js';
 import git001 from './git-001.js';
 import git002 from './git-002.js';
+import ioc001 from './ioc-001.js';
+import ioc002 from './ioc-002.js';
+import ioc003 from './ioc-003.js';
+import ioc004 from './ioc-004.js';
 import npm001 from './npm-001.js';
 import npm002 from './npm-002.js';
 import prp001 from './prp-001.js';
@@ -43,6 +47,10 @@ export const ALL_RULES: readonly Rule[] = [
   cfg003,
   env001,
   prp001,
+  ioc001,
+  ioc002,
+  ioc003,
+  ioc004,
 ] as Rule[];
 
 export function rulesIn(categories: readonly Category[]): Rule[] {
