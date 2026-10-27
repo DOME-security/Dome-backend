@@ -1,11 +1,34 @@
-import { tokenize, usesNetwork } from '../parsers/js.js';
+import { significant, tokenize, usesNetwork, type Token } from '../parsers/js.js';
 import { extname, isJsLike } from '../parsers/text.js';
 import { defineRule, targetsWhere } from './rule.js';
 import { isShellScript, isTestPath, REFS } from './shared.js';
 
-// Built from parts so this rule's own source does not match itself.
-const IDENTITY_PATHS = [['stellar', 'identity'], ['soroban', 'identity']].map((p) => p.join('/'));
 const CODE_EXTENSIONS = new Set(['py', 'rb', 'go', 'rs']);
+const IDENTITY_DIRS = new Set(['stellar', 'soroban']);
+// Built from parts so this rule's own source does not match itself.
+const IDENTITY_PATHS = [...IDENTITY_DIRS].map((dir) => dir + '/identity');
+
+/**
+ * Offset of a JS string literal that is a path into an identity folder, or
+ * of path segments such as `join(home, '.config', 'stellar', 'identity')`.
+ * Prose (strings with spaces) does not count.
+ */
+export function identityReference(text: string, tokens: Token[]): number | undefined {
+  const sig = significant(tokens);
+  for (let k = 0; k < sig.length; k++) {
+    const t = sig[k]!;
+    if (t.type !== 'string' && t.type !== 'template') continue;
+    const body = t.type === 'string' ? t.value : text.slice(t.start, t.end);
+    if (!/\s/.test(body) && IDENTITY_PATHS.some((p) => body.replace(/\\/g, '/').includes(p))) {
+      return t.start;
+    }
+    const next = sig[k + 2];
+    if (t.type === 'string' && IDENTITY_DIRS.has(t.value) && sig[k + 1]?.value === ',' && next?.type === 'string' && next.value === 'identity') {
+      return t.start;
+    }
+  }
+  return undefined;
+}
 
 export default defineRule(
   {
@@ -31,10 +54,12 @@ export default defineRule(
     for (const { path } of targetsWhere(ctx, candidates)) {
       const text = await ctx.readText(path);
       if (text === undefined) continue;
-      const normalized = text.replace(/\\\\?/g, '/');
-      const hit = IDENTITY_PATHS.map((p) => normalized.indexOf(p)).find((i) => i !== -1);
+      const tokens = isJsLike(path) ? tokenize(text) : undefined;
+      const hit = tokens
+        ? identityReference(text, tokens)
+        : IDENTITY_PATHS.map((p) => text.replace(/\\/g, '/').indexOf(p)).find((i) => i !== -1);
       if (hit === undefined) continue;
-      const network = isJsLike(path) && usesNetwork(tokenize(text));
+      const network = tokens !== undefined && usesNetwork(tokens);
       ctx.report(network ? 'exfiltrates' : 'reads', ctx.locate(path, hit), network ? 'block' : 'review');
     }
   },
