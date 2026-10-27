@@ -17,6 +17,9 @@ import npm001 from './npm-001.js';
 import npm002 from './npm-002.js';
 import prp001 from './prp-001.js';
 import type { Rule } from './rule.js';
+import stl001 from './stl-001.js';
+import stl002 from './stl-002.js';
+import stl003 from './stl-003.js';
 import vsc001 from './vsc-001.js';
 import vsc002 from './vsc-002.js';
 import vsc003 from './vsc-003.js';
@@ -51,6 +54,9 @@ export const ALL_RULES: readonly Rule[] = [
   ioc002,
   ioc003,
   ioc004,
+  stl001,
+  stl002,
+  stl003,
 ] as Rule[];
 
 export function rulesIn(categories: readonly Category[]): Rule[] {
