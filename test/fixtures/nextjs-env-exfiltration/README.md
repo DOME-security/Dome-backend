@@ -1,4 +1,6 @@
 # Next.js environment exfiltration (inert)
 
+The `.env` is not committed: `test/scenarios.test.ts` writes it into a temporary copy of this folder at run time.
+
 `.env` stores a base64 URL on the reserved `.invalid` domain, and an API route posts the whole
 `process.env` to it. Each half alone is a review; together they block.

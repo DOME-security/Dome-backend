@@ -7,5 +7,3 @@ coverage/
 !.env.example
 dome.json
 dome.sarif
-# Inert scenario fixtures need their .env files.
-!test/fixtures/**/.env
