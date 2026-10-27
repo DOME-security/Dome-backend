@@ -15,7 +15,7 @@ function files(f: Finding): string {
 }
 
 function rules(f: Finding): string {
-  return [...f.relatedRules, f.ruleId].map((id) => `[${id}](${ruleDocUrl(id)})`).join(' + ');
+  return [f.ruleId, ...f.relatedRules].map((id) => `[${id}](${ruleDocUrl(id)})`).join(' + ');
 }
 
 function table(findings: Finding[]): string[] {

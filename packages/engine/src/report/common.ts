@@ -23,7 +23,7 @@ export function cleanPath(path: string): string {
 }
 
 export function ruleLabel(f: Finding): string {
-  return [...f.relatedRules, f.ruleId].join(' + ');
+  return [f.ruleId, ...f.relatedRules].join(' + ');
 }
 
 export function counts(result: ScanResult): Record<Severity, number> {

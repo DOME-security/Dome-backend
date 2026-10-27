@@ -68,12 +68,27 @@ export async function grade({ findings, config, hashOf }: GradeInput): Promise<F
   }
 
   const active = (f: Finding) => !f.fixture && !f.allowed;
-  const surfaces = out.filter((f) => active(f) && AUTORUN_SURFACES.has(f.ruleId) && f.severity !== 'info');
   const absorbed = new Set<Finding>();
+
+  // A fake font that another finding already points at (a task or script
+  // running it) is folded into that finding: one row, both rules.
+  for (const font of out) {
+    if (font.ruleId !== 'DOME-AST-001' || !active(font)) continue;
+    const path = font.locations[0]?.path;
+    const runner = out.find(
+      (f) => f !== font && active(f) && f.severity !== 'info' && f.locations.slice(1).some((l) => l.path === path),
+    );
+    if (!runner) continue;
+    runner.relatedRules.push(font.ruleId);
+    runner.relatedRules.sort();
+    absorbed.add(font);
+  }
+
+  const surfaces = out.filter((f) => active(f) && !absorbed.has(f) && AUTORUN_SURFACES.has(f.ruleId) && f.severity !== 'info');
 
   if (surfaces.length > 0) {
     for (const f of out) {
-      if (!active(f) || !PAYLOAD_PARTNERS.has(f.ruleId) || f.severity === 'block' || f.severity === 'info') continue;
+      if (!active(f) || absorbed.has(f) || !PAYLOAD_PARTNERS.has(f.ruleId) || f.severity === 'block' || f.severity === 'info') continue;
       f.severity = 'block';
       f.reason += COMBINED_SUFFIX;
       for (const s of surfaces) {
