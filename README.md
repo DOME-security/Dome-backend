@@ -95,6 +95,29 @@ pnpm test:corpus    # false-positive run against known-honest repos
 
 See [`docs/writing-a-rule.md`](docs/writing-a-rule.md) for adding a rule, [`docs/rules/`](docs/rules/README.md) for per-rule reference pages, [`docs/api.md`](docs/api.md) for the REST API, [`docs/deployment.md`](docs/deployment.md) for running the service and [`docs/incident-response.md`](docs/incident-response.md) for what to do after a finding. See also [CONTRIBUTING.md](CONTRIBUTING.md). This repo has no `.vscode/tasks.json`, no install scripts, and its own `dome / scan` check is required on `main`.
 
+## Related repositories
+
+dome-backend is one of three repositories in the Dome Security org. It owns detection and serving; the other two own the interface and the chain.
+
+| Repository | Role | Direction |
+|---|---|---|
+| [`dome-frontend`](https://github.com/dome-security/dome-frontend) | The web app | Calls this repo's REST API |
+| [`dome-contracts`](https://github.com/dome-security/dome-contracts) | The on-chain Dome Registry (Soroban) | Emits events this repo reads; accepts attestations this repo publishes |
+
+**dome-frontend**
+
+- *Receives from it:* HTTP requests to the API in `packages/server`: `POST /v1/scans` to start a scan, `GET /v1/scans/:id` to poll it, `GET /v1/repos/:owner/:repo` for a repo's latest verdict, and `GET /v1/indicators` and `GET /v1/indicators/:sha256` for registry indicators. Browser origins must be listed in `CORS_ORIGINS`.
+- *Sends to it:* JSON scan results (verdict, findings, report hash) and indicator pages. Reasons in a result never quote text chosen by the scanned repo, so the frontend can render them without extra escaping logic for attacker-controlled prose.
+- *Shared interface:* the REST contract in [`docs/api.md`](docs/api.md). A change to a response shape is a breaking change for the frontend and needs a note in that file.
+
+**dome-contracts**
+
+- *Receives from it:* contract events, read through Stellar RPC by `packages/indexer` and decoded by `packages/registry-client`: `attest` (repo, commit, verdict, report hash, attester), `approve` (an indicator with its campaign and evidence) and `revoke`. They are stored in PostgreSQL as an index; the chain stays the source of truth.
+- *Sends to it:* `attest(attester, repo, commit, verdict, report_hash)` invocations, where `report_hash` is the SHA-256 of the canonical JSON report, so anyone can check a published verdict against a report.
+- *Shared interface:* the event and function shapes mirrored in [`packages/registry-client/src/schema.ts`](packages/registry-client/src/schema.ts). That file is hand-written until `dome-contracts` publishes generated TypeScript bindings and has not yet been checked against the deployed contract; it is the only place to change when the contract changes.
+
+**Inside this repo**, approved registry indicators flow into the same `packages/intel` format the engine reads (`hash`, `marker`, `package`, `domain`). `dome intel update` fetches them from the API server (`--api` or `DOME_API_URL`), which serves what the indexer has read from the chain, so a registry approval changes detection without a release.
+
 ## Design principles
 
 Dome reads untrusted repositories, so the engine is built to never become the attack path. Never execute: JSON with comments is parsed, not evaluated, and JS is tokenized, not run. Parsing is linear-time with no backtracking regular expressions on untrusted input, and a failed read is never "clean". Verdicts never repeat the repo's words, so a malicious repo cannot write "safe to install" into a warning a person or an AI agent will relay. Scans are deterministic and offline by default, and every report ends with: *"No known pattern found is not the same as safe."*
