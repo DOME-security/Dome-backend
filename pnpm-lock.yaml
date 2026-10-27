@@ -169,6 +169,15 @@ importers:
         specifier: 4.0.2
         version: 4.0.2
 
+  packages/indexer:
+    dependencies:
+      '@dome-security/registry-client':
+        specifier: workspace:*
+        version: link:../registry-client
+      '@dome-security/server':
+        specifier: workspace:*
+        version: link:../server
+
   packages/intel:
     dependencies:
       '@dome-security/engine':
