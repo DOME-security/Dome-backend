@@ -39,3 +39,17 @@ describe('DOME-STL-003', () => {
     expect(await runRule(stl003, { 'a.ts': broken })).toEqual([]);
   });
 });
+
+describe('DOME-STL-001 forms', () => {
+  it.each([
+    "path.join(os.homedir(), '.config', 'stellar', 'identity')",
+    'readdirSync(`${home}/.config/soroban/identity`)',
+    "open(home + '\\\\.config\\\\stellar\\\\identity')",
+  ])('finds %s', async (code) => {
+    expect(await runRule(stl001, { 'lib/x.js': code })).toHaveLength(1);
+  });
+
+  it('ignores prose that mentions the folder', async () => {
+    expect(await runRule(stl001, { 'lib/x.js': "const doc = 'Keys live in ~/.config/stellar/identity unless secure';" })).toEqual([]);
+  });
+});
