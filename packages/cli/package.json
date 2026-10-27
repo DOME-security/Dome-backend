@@ -21,7 +21,7 @@
   },
   "files": ["dist"],
   "engines": {
-    "node": ">=20.10"
+    "node": ">=22"
   },
   "dependencies": {
     "@dome-security/engine": "workspace:*",
