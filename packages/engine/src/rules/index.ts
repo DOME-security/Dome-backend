@@ -1,10 +1,17 @@
 import agt001 from './agt-001.js';
+import ast001 from './ast-001.js';
+import ast002 from './ast-002.js';
+import cfg001 from './cfg-001.js';
+import cfg002 from './cfg-002.js';
+import cfg003 from './cfg-003.js';
 import dev001 from './dev-001.js';
+import env001 from './env-001.js';
 import gha001 from './gha-001.js';
 import git001 from './git-001.js';
 import git002 from './git-002.js';
 import npm001 from './npm-001.js';
 import npm002 from './npm-002.js';
+import prp001 from './prp-001.js';
 import type { Rule } from './rule.js';
 import vsc001 from './vsc-001.js';
 import vsc002 from './vsc-002.js';
@@ -29,6 +36,13 @@ export const ALL_RULES: readonly Rule[] = [
   gha001,
   git001,
   git002,
+  ast001,
+  ast002,
+  cfg001,
+  cfg002,
+  cfg003,
+  env001,
+  prp001,
 ] as Rule[];
 
 export function rulesIn(categories: readonly Category[]): Rule[] {
