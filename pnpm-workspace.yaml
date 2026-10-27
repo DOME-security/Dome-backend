@@ -1,0 +1,7 @@
+packages:
+  - packages/*
+
+# No dependency gets to run install scripts. esbuild ships its binary as a
+# platform-specific optional dependency, so it works without its postinstall.
+allowBuilds:
+  esbuild: false
