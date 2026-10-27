@@ -1,0 +1,12 @@
+{
+  "verdict": "block",
+  "rules": [
+    "DOME-AST-001",
+    "DOME-CFG-001",
+    "DOME-VSC-001",
+    "DOME-VSC-002",
+    "DOME-VSC-003",
+    "DOME-VSC-004",
+    "DOME-VSC-006"
+  ]
+}

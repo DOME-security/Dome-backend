@@ -1,0 +1,9 @@
+{
+  "name": "honest-hooks",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "postinstall": "node scripts/setup.js",
+    "test": "vitest"
+  }
+}

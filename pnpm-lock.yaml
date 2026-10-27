@@ -109,6 +109,12 @@ importers:
 
   .:
     devDependencies:
+      '@dome-security/engine':
+        specifier: workspace:*
+        version: link:packages/engine
+      '@dome-security/intel':
+        specifier: workspace:*
+        version: link:packages/intel
       '@eslint/js':
         specifier: 9.34.0
         version: 9.34.0
