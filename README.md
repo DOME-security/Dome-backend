@@ -2,7 +2,7 @@
 
 **Auto-run malware detection for open-source repositories.**
 
-dome-backend holds everything in Dome that scans and serves: the detection engine and rules, the `dome` CLI, the GitHub Action, the API server and GitHub App, sandboxed scan workers, and the registry indexer. Dome finds code a repository will run without asking (VS Code tasks, npm install hooks, dev container commands, AI-agent hooks, GitHub workflows, payloads hidden in config files or fake fonts) and tells you which of those look like a known attack. It reads files as text and bytes. It never executes them.
+dome-backend holds everything in Dome that scans and serves: the detection engine and rules, the `dome` CLI, the GitHub Action, the API server with its GitHub App webhook intake, sandboxed scan workers, and the registry indexer. Dome finds code a repository will run without asking (VS Code tasks, npm install hooks, dev container commands, AI-agent hooks, GitHub workflows, payloads hidden in config files or fake fonts) and tells you which of those look like a known attack. It reads files as text and bytes. It never executes them.
 
 Part of the Dome Security GitHub org, alongside `dome-frontend` (the web app) and `dome-contracts` (the on-chain Dome Registry). Built for the Stellar Wave Program on Drips, after auto-run attacks reached several Wave repositories through merged pull requests in October 2026.
 
@@ -14,12 +14,12 @@ Part of the Dome Security GitHub org, alongside `dome-frontend` (the web app) an
 - **Payload detection:** fake fonts checked by format header fields rather than magic bytes, assets referenced from execution positions, code appended after the module body in JS/TS config files, heavy whitespace padding, runtime code construction (`eval`, `new Function`, `vm.runIn*`), `.env` exfiltration and clock-rewinding force-push propagation scripts (`DOME-AST-*`, `DOME-CFG-*`, `DOME-ENV-*`, `DOME-PRP-*`).
 - **Known indicators and Stellar-specific rules:** known-bad file hashes, published campaign markers, malicious npm packages and C2 domains, kept in `packages/intel` data files so they update without a release (`DOME-IOC-*`); plus code that reads Stellar CLI identities or browser wallet storage, and committed Stellar secret keys (`DOME-STL-*`).
 - **Graded verdicts, not alarm floods:** 🔴 **block** for payloads and indicator matches (fails the check), 🟠 **review** when an auto-run surface is added or changed, ⚪ **info** for context. Combinations escalate: `DOME-VSC-001` alone is review; with `DOME-AST-001` in the same change it is block. Reasons never quote text chosen by the scanned repo.
-- **Three ways to scan:** the `dome` CLI (`dome scan`, `dome sweep`, `dome intel update`, `dome init`) with text, JSON, SARIF and Markdown output; a fork-safe GitHub Action (`pull_request` only, `contents: read`, `report` or `enforce` mode); and a REST API plus org-wide GitHub App that power `dome-frontend` and run scheduled sweeps.
+- **Three ways to scan:** the `dome` CLI (`dome scan`, `dome sweep`, `dome intel update`, `dome init`) with text, JSON, SARIF and Markdown output; a fork-safe GitHub Action (`pull_request` only, `contents: read`, `report` or `enforce` mode); and a REST API and a GitHub App webhook endpoint that power `dome-frontend`. Org-wide install, private repositories and scheduled sweeps are planned (see [Roadmap](#roadmap)).
 - **Per-repo configuration:** an optional `.dome.yml` marks fixtures, accepts a reviewed task by content hash and raises severities. It can never lower a block caused by a known indicator.
 
 ## Status
 
-Pre-alpha. Milestones M1 to M5 are implemented: the engine with 27 rules, the CLI, the GitHub Action, the API server, scan workers and the registry indexer. M6 (the org-wide GitHub App) is partly done; see [Roadmap](#roadmap). The registry contract schema in `packages/registry-client` is assumed and still has to be checked against `dome-contracts`. Rule behaviour is documented in [`docs/rules/`](docs/rules/README.md).
+Pre-alpha. Milestones M1 to M5 are implemented: the engine with 27 rules, the CLI, the GitHub Action, the API server, scan workers and the registry indexer. M6 (the org-wide GitHub App) has only its webhook intake; install flow, private repositories, scheduled sweeps and alerts are planned. See [Roadmap](#roadmap). The registry contract schema in `packages/registry-client` is assumed and still has to be checked against `dome-contracts`. Rule behaviour is documented in [`docs/rules/`](docs/rules/README.md).
 
 ## Architecture
 
@@ -65,7 +65,7 @@ One TypeScript monorepo, with each package published or deployed on its own:
 
 - **Language**: TypeScript monorepo managed with pnpm workspaces
 - **Engine**: Linear-time JSONC, YAML and JS tokenizer parsers; font header validation; text, JSON, SARIF 2.1.0 and Markdown reporters
-- **API**: Fastify REST API (`/v1/scans`, `/v1/repos`, `/v1/indicators`, `/v1/webhooks/github`) and a GitHub App
+- **API**: Fastify REST API (`/v1/scans`, `/v1/repos`, `/v1/indicators`, `/v1/webhooks/github`) and GitHub App webhooks (`pull_request` and default-branch `push` on public repos)
 - **Workers**: Docker containers, unprivileged with a read-only root filesystem, no credentials and network access only to GitHub
 - **Data**: PostgreSQL index of Dome Registry events, read through Stellar RPC; the chain stays the source of truth
 
@@ -93,7 +93,7 @@ pnpm test           # unit tests + fixtures
 pnpm test:corpus    # false-positive run against known-honest repos
 ```
 
-See [`docs/writing-a-rule.md`](docs/writing-a-rule.md) for adding a rule, [`docs/rules/`](docs/rules/README.md) for per-rule reference pages, [`docs/api.md`](docs/api.md) for the REST API, [`docs/deployment.md`](docs/deployment.md) for running the service and [`docs/incident-response.md`](docs/incident-response.md) for what to do after a finding. See also [CONTRIBUTING.md](CONTRIBUTING.md). This repo has no `.vscode/tasks.json`, no install scripts, and its own `dome / scan` check is required on `main`.
+See [`docs/writing-a-rule.md`](docs/writing-a-rule.md) for adding a rule, [`docs/rules/`](docs/rules/README.md) for per-rule reference pages, [`docs/api.md`](docs/api.md) for the REST API, [`docs/deployment.md`](docs/deployment.md) for running the service and [`docs/incident-response.md`](docs/incident-response.md) for what to do after a finding. See also [CONTRIBUTING.md](CONTRIBUTING.md). This repo has no `.vscode/tasks.json`, no install scripts, and its own `dome / scan` check is to be required on `main` once branch protection is set up.
 
 ## Related repositories
 
@@ -124,18 +124,30 @@ Dome reads untrusted repositories, so the engine is built to never become the at
 
 ## Roadmap
 
-Each milestone builds on the one before. Summary:
+Each milestone builds on the one before. Items marked *planned* do not exist yet.
 
 - [x] **M1 Engine:** walker, git object reader, JSONC parser, finding model, text/JSON reporters, `autorun` rules
-- [x] **M2 CLI + Action:** `dome scan`, the GitHub Action with job summary, labels, `report`/`enforce` modes (PR labels are not done yet)
+- [x] **M2 CLI + Action:** `dome scan`, `dome sweep`, `dome init`, `dome intel`, the GitHub Action with job summary and `report`/`enforce` modes
+  - [ ] PR labels from the Action (*planned*)
 - [x] **M3 Payloads:** font header checks, JS tokenizer, config-tail detection, SARIF, fork-safe comment workflow
 - [x] **M4 API + workers:** REST API, job queue, sandboxed workers, scan of public repos for the web app
 - [x] **M5 Registry:** indexer, `registry-client`, `dome intel update`, attestation publishing
-- [ ] **M6 GitHub App:** org-wide install, scheduled sweeps, force-push/unsigned-commit alerts (private repos, scheduled sweeps and alerts are not done yet)
+- [ ] **M6 GitHub App:** org-wide install, scheduled sweeps, force-push/unsigned-commit alerts
+  - [x] Signed webhook intake: `pull_request` and default-branch `push` deliveries on public repos queue scans
+  - [ ] GitHub App authentication, install flow and posting results back to GitHub (*planned*)
+  - [ ] Private repositories (*planned*)
+  - [ ] Scheduled org-wide sweeps (*planned*)
+  - [ ] Force-push and unsigned-commit alerts (*planned*)
+- [ ] **Release readiness**
+  - [x] CI (test, image, self-scan, corpus, Action release), one docs page per rule, guides for rules, incident response, deployment and the API
+  - [ ] Merge `.dome.yml` to `main` before this branch's pull request, so the self-scan does not block on `test/fixtures` (*planned*)
+  - [ ] Check `packages/registry-client/src/schema.ts` against `dome-contracts` and swap in its generated bindings (*planned*)
+  - [ ] `CODEOWNERS` and branch protection on `main` (*planned*)
+  - [ ] Replace `REPLACE_WITH_RELEASE_SHA` in `packages/action/examples/` with the first release commit (*planned*)
 
 ## Security
 
-Report vulnerabilities privately through **Report a vulnerability** on this repo; see [SECURITY.md](SECURITY.md). Do not open public issues for bypasses until a fix is released; we credit reporters. `main` requires signed commits, blocks force-pushes, and requires code-owner review for `.vscode/`, `.github/`, `package.json` and lockfiles. Never add real malware, real obfuscated payloads or live attacker URLs in an executable position: such PRs are closed and reported, and known-bad domains and hashes belong only in `packages/intel` data files.
+Report vulnerabilities privately through **Report a vulnerability** on this repo; see [SECURITY.md](SECURITY.md). Do not open public issues for bypasses until a fix is released; we credit reporters. `main` is meant to require signed commits, block force-pushes, and require code-owner review for `.vscode/`, `.github/`, `package.json` and lockfiles; that protection is *planned* until `CODEOWNERS` and the branch rules are set up. Never add real malware, real obfuscated payloads or live attacker URLs in an executable position: such PRs are closed and reported, and known-bad domains and hashes belong only in `packages/intel` data files.
 
 ## License
 
