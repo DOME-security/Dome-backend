@@ -10,7 +10,6 @@
   },
   "scripts": {
     "build": "tsc -b packages/*/tsconfig.json",
-    "typecheck": "tsc -b packages/*/tsconfig.json --noEmit false",
     "lint": "eslint .",
     "test": "vitest run",
     "test:corpus": "tsx --conditions=development test/corpus/run.ts",
