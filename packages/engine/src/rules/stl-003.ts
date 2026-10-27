@@ -1,8 +1,11 @@
 import { strkeyIsValidSeed } from '../strkey.js';
 import { defineRule, targetsWhere } from './rule.js';
-import { looksBinary, REFS } from './shared.js';
+import { isAssetPath, extname } from '../parsers/text.js';
+import { isVendored, looksBinary, REFS } from './shared.js';
 
 const CANDIDATE = /\bS[A-Z2-7]{55}\b/g;
+const MAX_TEXT_BYTES = 1024 * 1024;
+const BINARY_EXTENSIONS = new Set(['wasm', 'node', 'so', 'dll', 'dylib', 'exe', 'jar', 'gz', 'tgz', 'xz', 'bz2', '7z', 'rar']);
 
 export default defineRule(
   {
@@ -21,8 +24,9 @@ export default defineRule(
     },
   },
   async (ctx) => {
-    for (const { path, size } of targetsWhere(ctx, (p) => !p.includes('node_modules/'))) {
-      if (size < 56) continue;
+    const candidates = (p: string) => !isVendored(p) && !isAssetPath(p) && !BINARY_EXTENSIONS.has(extname(p));
+    for (const { path, size } of targetsWhere(ctx, candidates)) {
+      if (size < 56 || size > MAX_TEXT_BYTES) continue;
       const bytes = await ctx.readBytes(path);
       if (!bytes || looksBinary(bytes)) continue;
       const text = await ctx.readText(path);

@@ -8,6 +8,8 @@ export interface RuleContext<R extends string = string> {
   /** Every entry in the scanned tree, for resolving references. */
   readonly tree: ReadonlyMap<string, TreeEntry>;
   readonly intel: IntelSet;
+  /** Files above this size are not read; reading one marks the scan incomplete. */
+  readonly maxFileBytes: number;
   readText(path: string): Promise<string | undefined>;
   readBytes(path: string): Promise<Uint8Array | undefined>;
   /** In a diff scan, the file at the merge base; `undefined` when it did not exist or in a full scan. */

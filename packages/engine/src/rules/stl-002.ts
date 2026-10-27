@@ -1,7 +1,7 @@
 import { tokenize, usesNetwork } from '../parsers/js.js';
 import { extname, isJsLike } from '../parsers/text.js';
 import { defineRule, targetsWhere } from './rule.js';
-import { isShellScript, isTestPath, REFS } from './shared.js';
+import { isShellScript, isTestPath, isVendored, REFS } from './shared.js';
 
 // Built from parts so this rule's own source does not match itself.
 const WALLET_STORAGE = [
@@ -31,7 +31,7 @@ export default defineRule(
   },
   async (ctx) => {
     const candidates = (p: string) =>
-      (isJsLike(p) || isShellScript(p) || CODE_EXTENSIONS.has(extname(p))) && !isTestPath(p) && !p.includes('node_modules/');
+      (isJsLike(p) || isShellScript(p) || CODE_EXTENSIONS.has(extname(p))) && !isTestPath(p) && !isVendored(p);
     for (const { path } of targetsWhere(ctx, candidates)) {
       const text = await ctx.readText(path);
       if (text === undefined) continue;

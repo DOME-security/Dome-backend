@@ -1,5 +1,5 @@
 import { isDevcontainerFile, isPackageJson, parseDevcontainer, parsePackageJson } from '../parsers/manifests.js';
-import { dirname, extname, isJsConfigFile, isRouteFile } from '../parsers/text.js';
+import { dirname, extname, isJsConfigFile, isMinifiedName, isRouteFile } from '../parsers/text.js';
 import { isTasksFile, isWorkspaceFile, parseTasks } from '../parsers/vscode.js';
 import { isWorkflowFile, parseWorkflow } from '../parsers/workflow.js';
 import type { Location, Reference } from '../types.js';
@@ -125,6 +125,13 @@ export function looksBinary(bytes: Uint8Array): boolean {
   const end = Math.min(bytes.length, 8000);
   for (let i = 0; i < end; i++) if (bytes[i] === 0) return true;
   return false;
+}
+
+const VENDORED = /(?:^|\/)(?:node_modules|\.yarn|vendor|third_party|bower_components|dist|build|out|\.next|coverage)\//;
+
+/** Dependency copies, release binaries and build output: not code a contributor wrote in this change. */
+export function isVendored(p: string): boolean {
+  return VENDORED.test(p) || isMinifiedName(p);
 }
 
 const TEST_PATH = /(?:^|\/)(?:test|tests|__tests__|spec|__mocks__)\/|\.(?:test|spec)\.[cm]?[jt]sx?$/;

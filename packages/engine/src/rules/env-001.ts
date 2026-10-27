@@ -2,7 +2,7 @@ import { tokenize, usesNetwork, wholeProcessEnv } from '../parsers/js.js';
 import { basename, isJsLike } from '../parsers/text.js';
 import type { Location } from '../types.js';
 import { defineRule, targetsWhere } from './rule.js';
-import { isTestPath, REFS } from './shared.js';
+import { isTestPath, isVendored, REFS } from './shared.js';
 
 const ENV_FILE = /^\.env(?:\..+)?$/;
 const BASE64 = /^[A-Za-z0-9+/]{16,}={0,2}$/;
@@ -41,7 +41,7 @@ export default defineRule(
         if (eq !== -1 && !line.trimStart().startsWith('#') && encodedUrl(line.slice(eq + 1))) encoded.push({ path, line: i + 1 });
       });
     }
-    for (const { path } of targetsWhere(ctx, (p) => isJsLike(p) && !isTestPath(p) && !p.includes('node_modules/'))) {
+    for (const { path } of targetsWhere(ctx, (p) => isJsLike(p) && !isTestPath(p) && !isVendored(p))) {
       const text = await ctx.readText(path);
       if (text === undefined || !text.includes('process')) continue;
       const tokens = tokenize(text);

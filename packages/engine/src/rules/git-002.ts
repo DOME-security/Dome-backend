@@ -4,7 +4,8 @@ import { basename } from '../parsers/text.js';
 import { defineRule, targetsWhere } from './rule.js';
 import { REFS } from './shared.js';
 
-const HOOK_FILE = /^(?:.*\/)?(?:\.husky\/(?!_\/)[^/]+|\.githooks\/[^/]+)$/;
+// Hook managers install from the repository root only.
+const HOOK_FILE = /^(?:\.husky\/(?!_\/)[^/]+|\.githooks\/[^/]+)$/;
 const HOOK_NAMES = new Set([
   'pre-commit',
   'prepare-commit-msg',

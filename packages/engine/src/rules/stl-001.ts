@@ -1,7 +1,7 @@
 import { significant, tokenize, usesNetwork, type Token } from '../parsers/js.js';
 import { extname, isJsLike } from '../parsers/text.js';
 import { defineRule, targetsWhere } from './rule.js';
-import { isShellScript, isTestPath, REFS } from './shared.js';
+import { isShellScript, isTestPath, isVendored, REFS } from './shared.js';
 
 const CODE_EXTENSIONS = new Set(['py', 'rb', 'go', 'rs']);
 const IDENTITY_DIRS = new Set(['stellar', 'soroban']);
@@ -50,7 +50,7 @@ export default defineRule(
   },
   async (ctx) => {
     const candidates = (p: string) =>
-      (isJsLike(p) || isShellScript(p) || CODE_EXTENSIONS.has(extname(p))) && !isTestPath(p) && !p.includes('node_modules/');
+      (isJsLike(p) || isShellScript(p) || CODE_EXTENSIONS.has(extname(p))) && !isTestPath(p) && !isVendored(p);
     for (const { path } of targetsWhere(ctx, candidates)) {
       const text = await ctx.readText(path);
       if (text === undefined) continue;

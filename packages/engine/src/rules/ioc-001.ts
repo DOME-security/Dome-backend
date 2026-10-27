@@ -20,7 +20,8 @@ export default defineRule(
   },
   async (ctx) => {
     if (ctx.intel.hashes.size === 0) return;
-    for (const { path } of targetsWhere(ctx, () => true)) {
+    // Known payload files are small; skip files above the read limit rather than marking the scan incomplete.
+    for (const { path } of targetsWhere(ctx, (p) => (ctx.tree.get(p)?.size ?? 0) <= ctx.maxFileBytes)) {
       const bytes = await ctx.readBytes(path);
       if (bytes && ctx.intel.hashes.has(sha256Hex(bytes))) ctx.report('knownHash', { path });
     }

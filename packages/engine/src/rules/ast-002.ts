@@ -1,7 +1,7 @@
 import { findCodeConstruction, stringCalls, tokenize } from '../parsers/js.js';
 import { isAssetPath, isJsLike } from '../parsers/text.js';
 import { defineRule, targetsWhere } from './rule.js';
-import { executableCommands, isTestPath, locateInCommand, REFS } from './shared.js';
+import { executableCommands, isTestPath, isVendored, locateInCommand, REFS } from './shared.js';
 import { nonScriptRuns } from './vsc-004.js';
 
 const SPAWNERS = new Set(['fork']);
@@ -32,7 +32,7 @@ export default defineRule(
       const fileText = await ctx.readText(cmd.path);
       for (const file of nonScriptRuns(cmd.text)) ctx.report('command', locateInCommand(ctx, cmd, file, fileText));
     }
-    for (const { path } of targetsWhere(ctx, (p) => isJsLike(p) && !isTestPath(p) && !p.includes('node_modules/'))) {
+    for (const { path } of targetsWhere(ctx, (p) => isJsLike(p) && !isTestPath(p) && !isVendored(p))) {
       const text = await ctx.readText(path);
       if (text === undefined || !/fork|readFile/.test(text)) continue;
       const tokens = tokenize(text);

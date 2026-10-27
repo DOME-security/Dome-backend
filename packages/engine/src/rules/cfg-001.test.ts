@@ -21,3 +21,24 @@ describe('DOME-CFG-001', () => {
     expect(await runRule(rule, files)).toEqual([]);
   });
 });
+
+describe('DOME-CFG-001 regressions from the false-positive corpus', () => {
+  it('ignores helper declarations after export default (prettier/website/vite.config.mjs)', async () => {
+    const config = 'export default defineConfig({\n  plugins: [],\n});\n\nfunction buildCdnAlias() {\n  return {};\n}\nconst x = 1;\n';
+    expect(await runRule(rule, { 'vite.config.mjs': config })).toEqual([]);
+  });
+
+  it('treats module.exports = function () {}; as one statement (vscode-extension-samples webpack config)', async () => {
+    const config = "module.exports = function withDefaults(extConfig) {\n  return merge({}, extConfig);\n};\n";
+    expect(await runRule(rule, { 'shared.webpack.config.js': config })).toEqual([]);
+  });
+
+  it('ignores further module.exports assignments', async () => {
+    expect(await runRule(rule, { 'a.config.js': 'module.exports = {};\nmodule.exports.extra = 1;\n' })).toEqual([]);
+  });
+
+  it('still blocks a padded declaration', async () => {
+    const config = `export default {};${' '.repeat(200)}const DOME_FIXTURE = 1;\n`;
+    expect(await runRule(rule, { 'next.config.mjs': config })).toEqual(['block:paddedTail@next.config.mjs:1']);
+  });
+});
