@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "DOME_FIXTURE",
+      "command": "echo DOME_FIXTURE",
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    }
+  ]
+}

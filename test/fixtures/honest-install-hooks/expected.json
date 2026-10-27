@@ -1,0 +1,7 @@
+{
+  "verdict": "review",
+  "rules": [
+    "DOME-GIT-002",
+    "DOME-NPM-001"
+  ]
+}
