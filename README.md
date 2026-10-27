@@ -116,7 +116,7 @@ Report vulnerabilities privately through **Report a vulnerability** on this repo
 
 ## License
 
-Apache-2.0 (proposed).
+Apache-2.0. See [LICENSE](LICENSE).
 
 ## Acknowledgments
 
