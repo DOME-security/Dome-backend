@@ -81,7 +81,7 @@ export function tokenize(text: string): Token[] {
     const c = text[i]!;
     const code = text.charCodeAt(i);
     if (c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f' || c === '\v' || code === 0xa0 || code === 0xfeff) {
-      while (i < n && /[\s﻿\xA0]/.test(text[i]!)) i++;
+      while (i < n && /[\s\uFEFF\xA0]/.test(text[i]!)) i++;
       push('ws', start, i);
     } else if (c === '/' && text[i + 1] === '/') {
       const nl = text.indexOf('\n', i);
