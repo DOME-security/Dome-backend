@@ -1,0 +1,19 @@
+{
+  "name": "@dome-security/action",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitHub Action that runs the Dome engine on pull requests and pushes.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "bundle": "esbuild src/main.ts --bundle --platform=node --target=node22 --format=esm --conditions=development --main-fields=module,main --outfile=dist/index.js --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --legal-comments=linked"
+  },
+  "dependencies": {
+    "@dome-security/engine": "workspace:*",
+    "@dome-security/intel": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.9",
+    "yaml": "2.8.1"
+  }
+}

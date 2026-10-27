@@ -1,0 +1,9 @@
+{
+  "verdict": "block",
+  "rules": [
+    "DOME-VSC-001",
+    "DOME-VSC-002",
+    "DOME-VSC-003",
+    "DOME-GIT-001"
+  ]
+}

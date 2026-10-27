@@ -1,0 +1,46 @@
+name: Dome
+description: Find code a repository will run without asking, and block known payloads. Reads files; never executes them.
+author: Dome Security
+branding:
+  icon: shield
+  color: orange
+
+inputs:
+  mode:
+    description: '"enforce" fails the check at or above fail-on; "report" never fails.'
+    default: enforce
+  fail-on:
+    description: '"block" (default) or "review" for repositories that should never gain auto-run files.'
+    default: block
+  scope:
+    description: '"diff" scans what the change touches; "full" scans the whole tree.'
+    default: diff
+  sarif:
+    description: 'Upload results to GitHub code scanning (needs `security-events: write`).'
+    default: 'false'
+  comment:
+    description: 'Post or update one pull request comment with the report (needs `pull-requests: write`). Use from a workflow_run workflow for forks.'
+    default: 'false'
+  pull-request:
+    description: Pull request number to scan when running outside a pull_request event (workflow_run). The head is fetched as git objects only.
+    default: ''
+  expected-head-sha:
+    description: With pull-request, refuse to scan unless the pull request head is still this commit.
+    default: ''
+  token:
+    description: Token for SARIF upload, comments and pull request lookups.
+    default: ${{ github.token }}
+
+outputs:
+  verdict:
+    description: clean, review, block or incomplete.
+  report-json:
+    description: Path to the JSON report.
+  report-markdown:
+    description: Path to the Markdown report.
+  report-sarif:
+    description: Path to the SARIF report.
+
+runs:
+  using: node24
+  main: dist/index.js

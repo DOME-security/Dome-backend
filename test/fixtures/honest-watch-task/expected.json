@@ -1,0 +1,7 @@
+{
+  "verdict": "review",
+  "rules": [
+    "DOME-VSC-001",
+    "DOME-VSC-006"
+  ]
+}

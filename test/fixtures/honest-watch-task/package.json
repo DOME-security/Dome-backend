@@ -1,0 +1,7 @@
+{
+  "name": "honest-watch",
+  "private": true,
+  "scripts": {
+    "watch": "tsc --watch"
+  }
+}

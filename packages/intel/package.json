@@ -1,0 +1,26 @@
+{
+  "name": "@dome-security/intel",
+  "version": "0.1.0",
+  "description": "Versioned indicator data for Dome (hashes, packages, domains, markers) and its loader.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dome-security/dome-backend.git",
+    "directory": "packages/intel"
+  },
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@dome-security/engine": "workspace:*"
+  }
+}

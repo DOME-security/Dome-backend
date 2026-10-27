@@ -1,0 +1,30 @@
+{
+  "name": "@dome-security/cli",
+  "version": "0.1.0",
+  "description": "The dome command: scan repositories for auto-run malware without running anything.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dome-security/dome-backend.git",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "dome": "./dist/bin.js"
+  },
+  "exports": {
+    ".": {
+      "development": "./src/cli.ts",
+      "types": "./dist/cli.d.ts",
+      "default": "./dist/cli.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@dome-security/engine": "workspace:*",
+    "@dome-security/intel": "workspace:*"
+  }
+}

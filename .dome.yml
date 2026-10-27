@@ -1,0 +1,13 @@
+# Dome scans this repository on every pull request (.github/workflows/dome.yml).
+# In pull requests this file is read from the base branch.
+
+# Inert look-alikes of real attacks, used by the scenario tests.
+fixtures:
+  - test/fixtures/**
+
+allow: []
+
+# This repository should never gain install scripts or committed git hooks.
+severity:
+  DOME-NPM-001: block
+  DOME-GIT-002: block
