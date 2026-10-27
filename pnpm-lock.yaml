@@ -203,6 +203,18 @@ importers:
         specifier: 8.15.5
         version: 8.15.5
 
+  packages/worker:
+    dependencies:
+      '@dome-security/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@dome-security/intel':
+        specifier: workspace:*
+        version: link:../intel
+      '@dome-security/server':
+        specifier: workspace:*
+        version: link:../server
+
 packages:
 
   '@esbuild/aix-ppc64@0.25.12':

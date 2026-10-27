@@ -1,0 +1,23 @@
+{
+  "name": "@dome-security/worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sandboxed Dome scan workers that pull jobs from the queue.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.10"
+  },
+  "dependencies": {
+    "@dome-security/engine": "workspace:*",
+    "@dome-security/intel": "workspace:*",
+    "@dome-security/server": "workspace:*"
+  }
+}
