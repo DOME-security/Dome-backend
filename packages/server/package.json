@@ -1,0 +1,33 @@
+{
+  "name": "@dome-security/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dome REST API, GitHub App webhooks, scan queue and attestation publisher.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./store": {
+      "development": "./src/store/index.ts",
+      "types": "./dist/store/index.d.ts",
+      "default": "./dist/store/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.10"
+  },
+  "dependencies": {
+    "@dome-security/engine": "workspace:*",
+    "@dome-security/registry-client": "workspace:*",
+    "@fastify/rate-limit": "10.3.0",
+    "fastify": "5.5.0",
+    "pg": "8.16.3"
+  },
+  "devDependencies": {
+    "@types/pg": "8.15.5"
+  }
+}
