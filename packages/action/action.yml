@@ -16,10 +16,10 @@ inputs:
     description: '"diff" scans what the change touches; "full" scans the whole tree.'
     default: diff
   sarif:
-    description: Upload results to GitHub code scanning (needs `security-events: write`).
+    description: 'Upload results to GitHub code scanning (needs `security-events: write`).'
     default: 'false'
   comment:
-    description: Post or update one pull request comment with the report (needs `pull-requests: write`). Use from a workflow_run workflow for forks.
+    description: 'Post or update one pull request comment with the report (needs `pull-requests: write`). Use from a workflow_run workflow for forks.'
     default: 'false'
   pull-request:
     description: Pull request number to scan when running outside a pull_request event (workflow_run). The head is fetched as git objects only.

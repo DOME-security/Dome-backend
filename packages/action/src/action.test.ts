@@ -125,3 +125,13 @@ describe('run', () => {
     ).rejects.toThrow('head moved');
   });
 });
+
+describe('action.yml', () => {
+  it('is valid YAML that declares every input main.ts reads', async () => {
+    const { parseDocument } = await import('yaml');
+    const doc = parseDocument(await readFile(new URL('../action.yml', import.meta.url), 'utf8'));
+    expect(doc.errors).toEqual([]);
+    const inputs = Object.keys((doc.toJS() as { inputs: Record<string, unknown> }).inputs);
+    expect(inputs.sort()).toEqual(['comment', 'expected-head-sha', 'fail-on', 'mode', 'pull-request', 'sarif', 'scope', 'token']);
+  });
+});
