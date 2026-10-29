@@ -13,12 +13,17 @@ export function ruleDocUrl(ruleId: string): string {
 const CONTROL = /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g;
 
 /**
- * Paths are the only repository-chosen text in a report. Strip control,
- * zero-width and bidi characters (which can disguise a path or inject terminal
- * escapes) and cap the length.
+ * Paths are the only repository-chosen text in a report. Replaces control,
+ * zero-width and bidi characters, which can disguise a path or inject
+ * terminal escapes. Applied to every path in a ScanResult.
  */
+export function sanitizePath(path: string): string {
+  return path.replace(CONTROL, '\uFFFD');
+}
+
+/** A sanitized path capped in length, for display. */
 export function cleanPath(path: string): string {
-  const cleaned = path.replace(CONTROL, '�');
+  const cleaned = sanitizePath(path);
   return cleaned.length > 200 ? `${cleaned.slice(0, 197)}...` : cleaned;
 }
 

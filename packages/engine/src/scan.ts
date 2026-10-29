@@ -2,6 +2,7 @@ import { CONFIG_PATH, ConfigError, EMPTY_CONFIG, parseConfig, type DomeConfig } 
 import { grade } from './grade.js';
 import { sha256Hex } from './hash.js';
 import { UncheckableInput } from './parsers/errors.js';
+import { sanitizePath } from './report/common.js';
 import { decodeText, LineIndex } from './parsers/text.js';
 import { ALL_RULES } from './rules/index.js';
 import type { Rule, RuleContext } from './rules/rule.js';
@@ -202,10 +203,15 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   await options.source.close?.();
   await options.diff?.base.close?.();
 
-  const incompleteList = [...incomplete.values()].sort((a, b) => a.path.localeCompare(b.path));
+  const incompleteList = [...incomplete.values()]
+    .sort((a, b) => a.path.localeCompare(b.path))
+    .map((i) => ({ ...i, path: sanitizePath(i.path) }));
+  // Paths are the only repository-chosen text in a result; every consumer
+  // (JSON, the API, the stored report and its hash) gets them sanitized.
+  for (const f of findings) f.locations = f.locations.map((l) => ({ ...l, path: sanitizePath(l.path) }));
   return {
     tool: { name: 'dome', version: VERSION },
-    target: options.source.label,
+    target: sanitizePath(options.source.label),
     scope: options.diff ? 'diff' : 'full',
     verdict: verdictOf(findings, incompleteList),
     findings,

@@ -50,5 +50,7 @@ describe('reporters', () => {
     expect(md).toContain('&#124;');
     expect(formatText(r)).not.toContain('\u001b[2J');
     expect(formatText(r)).not.toContain('\u202e');
+    const json = JSON.parse(formatJson(r)) as ScanResult;
+    expect(json.findings[0]!.locations[0]!.path).toBe('x|<img src=x onerror=alert(1)>\uFFFD[2J\uFFFD.woff2');
   });
 });
