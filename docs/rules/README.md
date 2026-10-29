@@ -33,5 +33,6 @@
 | [DOME-STL-003](DOME-STL-003.md) | `stellar` | 🟠 review | Hard-coded Stellar secret key |
 
 Default levels are before grading. In a diff scan, a payload finding plus any auto-run surface in the same
-change becomes a block ("An auto-run surface in the same change can trigger it."), and a folder-open task, automatic tasks turned on and a
-hidden `.vscode` together block. See [How findings are graded](../../README.md#how-findings-are-graded).
+change becomes a block ("An auto-run surface in the same change can trigger it."). In a full scan, a folder-open task plus a fake font
+anywhere in the tree blocks. A folder-open task, automatic tasks turned on and a hidden `.vscode` together
+block in either scan. See [How findings are graded](../../README.md#how-findings-are-graded).

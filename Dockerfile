@@ -35,3 +35,13 @@ RUN apk add --no-cache git=2.49.1-r0 || apk add --no-cache git
 USER node
 ENV HOME=/tmp
 CMD ["node", "packages/worker/dist/bin/worker.js"]
+
+# The only route off the workers' isolated network: an HTTPS proxy that tunnels
+# to github.com and refuses everything else (deploy/egress-proxy).
+FROM node:22.20.0-alpine3.22 AS egress-proxy
+RUN apk add --no-cache tinyproxy
+COPY deploy/egress-proxy/tinyproxy.conf /etc/tinyproxy/tinyproxy.conf
+COPY deploy/egress-proxy/allowed-hosts /etc/tinyproxy/allowed-hosts
+USER tinyproxy
+EXPOSE 8888
+CMD ["tinyproxy", "-d", "-c", "/etc/tinyproxy/tinyproxy.conf"]

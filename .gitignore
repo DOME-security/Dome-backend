@@ -1,5 +1,8 @@
 node_modules/
 dist/
+!packages/action/dist/
+packages/action/dist/*
+!packages/action/dist/index.js
 *.tsbuildinfo
 coverage/
 .env
@@ -7,3 +10,4 @@ coverage/
 !.env.example
 dome.json
 dome.sarif
+*.private.json

@@ -1,1 +1,1 @@
-export { CURSOR_NAME, indexOnce, runIndexer, type IndexerOptions } from './indexer.js';
+export { CURSOR_NAME, indexOnce, rebuildIndex, runIndexer, type IndexerOptions } from './indexer.js';

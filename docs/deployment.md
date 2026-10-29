@@ -44,10 +44,15 @@ the sandbox assumes that guarantee might one day fail:
   `/tmp` for clones. `docker-compose.yml` shows the settings.
 - **Bounded resources.** CPU, memory and process-count limits, plus the job
   timeout (`JOB_TIMEOUT_MS`).
-- **Egress to GitHub only.** Allow HTTPS to `github.com` and the database;
-  deny everything else at the network layer (a Kubernetes `NetworkPolicy`, a
-  security group, or an egress proxy). Compose cannot express this, so
-  production must.
+- **Egress to GitHub only.** The worker sits on an `internal` Docker network
+  with no route out. Its single way off that network is the `egress-proxy`
+  service (`deploy/egress-proxy`), an HTTPS proxy that tunnels to `github.com`
+  and its subdomains and answers `403` for every other name, look-alikes such
+  as `github.com.example.com` included. Workers receive `HTTPS_PROXY`; the
+  engine passes it to `git`. `test/sandbox` proves it against the real worker
+  image (`pnpm test:sandbox`, needs Docker and the internet). On Kubernetes or
+  a cloud network, reproduce the same shape with a `NetworkPolicy` or security
+  group that allows only the proxy and the database.
 - **One job per worker, fresh scratch space.** Each clone is deleted after the
   scan; scale by adding workers.
 

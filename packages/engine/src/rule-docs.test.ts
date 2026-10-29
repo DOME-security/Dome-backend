@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ruleDocFiles } from './rule-docs.js';
+import { ruleCatalogJson, ruleDocFiles } from './rule-docs.js';
 import { ALL_RULES } from './rules/index.js';
 
 const dir = new URL('../../../docs/rules/', import.meta.url);
@@ -10,6 +10,12 @@ describe('docs/rules', () => {
     const files = ruleDocFiles();
     expect(readdirSync(dir).filter((f) => f.endsWith('.md')).sort()).toEqual(Object.keys(files).sort());
     for (const [name, content] of Object.entries(files)) expect(readFileSync(new URL(name, dir), 'utf8'), name).toBe(content);
+  });
+});
+
+describe('rules.json', () => {
+  it('is up to date with rule metadata (run pnpm docs:rules)', () => {
+    expect(readFileSync(new URL('../rules.json', import.meta.url), 'utf8')).toBe(ruleCatalogJson());
   });
 });
 

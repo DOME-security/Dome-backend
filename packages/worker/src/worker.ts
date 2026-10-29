@@ -11,7 +11,7 @@ import {
   type ScanResult,
 } from '@dome-security/engine';
 import { bundledIndicators, toIntelSet, type Indicator } from '@dome-security/intel';
-import type { ScanJob, Store } from '@dome-security/server/store';
+import { toIntelIndicator, type ScanJob, type Store } from '@dome-security/server/store';
 
 export interface GitOps {
   clone(url: string, options: { depth?: number; ref?: string }): Promise<ClonedRepo>;
@@ -63,7 +63,13 @@ export async function processJob(job: ScanJob, intel: IntelSet, git: GitOps = re
       });
       diff = { base: new GitTreeSource(clone.dir, mergeBase), changed: await gitChangedPaths(clone.dir, mergeBase, headSha) };
     }
-    const result = await scan({ source: new GitTreeSource(clone.dir, headSha, `${job.owner}/${job.repo}`), diff, intel });
+    // The service scans other people's repositories: their .dome.yml can raise severities, never lower them.
+    const result = await scan({
+      source: new GitTreeSource(clone.dir, headSha, `${job.owner}/${job.repo}`),
+      diff,
+      intel,
+      repoConfig: 'untrusted',
+    });
     return { result, headSha };
   } finally {
     await clone.dispose();
@@ -76,7 +82,7 @@ export async function loadIntel(store: Store): Promise<IntelSet> {
   let cursor: string | null = null;
   for (let page = 0; page < 1000; page++) {
     const res = await store.listIndicators(cursor, 500);
-    indicators.push(...res.items.map((i) => ({ kind: i.kind, value: i.value, campaign: i.campaign, evidence: i.evidence })));
+    indicators.push(...res.items.map((i) => { const { fileKind: _f, ...indicator } = toIntelIndicator(i); return indicator; }));
     cursor = res.nextCursor;
     if (!cursor) break;
   }

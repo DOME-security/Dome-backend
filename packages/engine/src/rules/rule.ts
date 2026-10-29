@@ -19,6 +19,8 @@ export interface RuleContext<R extends string = string> {
   /** Converts a character offset in a file already read with `readText` to a location. */
   locate(path: string, offset: number): Location;
   report(reason: R, locations: Location | Location[], severity?: Severity): void;
+  /** Records that a file could not be checked, so the scan cannot come out clean. */
+  couldNotCheck(path: string, reason: 'parse-error'): void;
 }
 
 export interface Rule<R extends string = string> {

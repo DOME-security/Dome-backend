@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scanFiles } from '../__fixtures__/run-rule.js';
 import type { ScanResult } from '../types.js';
-import { formatJson, formatMarkdown, formatSarif, formatText, HONESTY_NOTICE } from './index.js';
+import { formatJson, formatMarkdown, formatReport, formatSarif, formatText, HONESTY_NOTICE, REPORT_FORMATS } from './index.js';
 
 const polinRiderLike = {
   '.vscode/tasks.json': JSON.stringify(
@@ -43,6 +43,22 @@ describe('reporters', () => {
     for (const res of run.results) expect(run.tool.driver.rules[res.ruleIndex].id).toBe(res.ruleId);
   });
 
+  it('dispatches every format through formatReport', async () => {
+    const r = await result();
+    for (const format of REPORT_FORMATS) expect(formatReport(r, format).trimEnd().length).toBeGreaterThan(0);
+    expect(formatReport(r, 'json')).toBe(formatJson(r));
+    expect(formatReport(r, 'text', { color: true })).toContain('\u001b[31;1m');
+  });
+
+  it('lists files it could not check in every human-readable format', async () => {
+    const r = await scanFiles({ '.github/workflows/x.yml': 'jobs: [' });
+    expect(r.verdict).toBe('incomplete');
+    expect(formatText(r)).toContain('Could not check:');
+    expect(formatMarkdown(r)).toContain('### ⚪ Dome: could not check every file');
+    expect(formatMarkdown(r)).toContain('(parse-error)');
+    expect(JSON.parse(formatSarif(r)).runs[0].invocations[0].executionSuccessful).toBe(false);
+  });
+
   it('neutralizes hostile file names', async () => {
     const r = await scanFiles({ 'x|<img src=x onerror=alert(1)>\u001b[2J\u202e.woff2': 'DOME_FIXTURE_NOT_A_FONT' });
     const md = formatMarkdown(r);
@@ -50,5 +66,7 @@ describe('reporters', () => {
     expect(md).toContain('&#124;');
     expect(formatText(r)).not.toContain('\u001b[2J');
     expect(formatText(r)).not.toContain('\u202e');
+    const json = JSON.parse(formatJson(r)) as ScanResult;
+    expect(json.findings[0]!.locations[0]!.path).toBe('x|<img src=x onerror=alert(1)>\uFFFD[2J\uFFFD.woff2');
   });
 });

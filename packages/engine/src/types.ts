@@ -68,11 +68,17 @@ export type Verdict = 'clean' | 'review' | 'block' | 'incomplete';
 
 export interface IncompleteRead {
   path: string;
-  reason: 'too-large' | 'read-error' | 'invalid-config' | 'unsupported-entry';
+  /**
+   * `parse-error`: a parser refused the file (for example nesting too deep).
+   * `rule-error`: a rule failed while reading this file; `ruleId` names it.
+   */
+  reason: 'too-large' | 'read-error' | 'invalid-config' | 'unsupported-entry' | 'parse-error' | 'rule-error';
+  ruleId?: string;
 }
 
 export interface ScanResult {
-  tool: { name: 'dome'; version: string };
+  /** `rulesHash`: SHA-256 of the rule and indicator set used (see `rulesetHash`). */
+  tool: { name: 'dome'; version: string; rulesHash: string };
   target: string;
   scope: 'full' | 'diff';
   verdict: Verdict;

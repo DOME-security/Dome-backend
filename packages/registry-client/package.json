@@ -16,11 +16,14 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=22"
   },
   "dependencies": {
-    "@stellar/stellar-sdk": "14.1.1"
+    "@dome-security/registry-bindings": "workspace:*",
+    "@stellar/stellar-sdk": "17.2.1"
   }
 }

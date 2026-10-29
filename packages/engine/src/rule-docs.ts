@@ -1,6 +1,8 @@
 import { COMBINED_SUFFIX } from './grade.js';
+import { ruleDocUrl } from './report/common.js';
 import { ALL_RULES } from './rules/index.js';
-import type { RuleMeta, Severity } from './types.js';
+import type { Category, RuleMeta, Severity } from './types.js';
+import { VERSION } from './version.js';
 
 const SEVERITY_LABEL: Record<Severity, string> = { block: '🔴 block', review: '🟠 review', info: '⚪ info' };
 
@@ -55,8 +57,9 @@ export function renderRuleIndex(): string {
 ${rows.join('\n')}
 
 Default levels are before grading. In a diff scan, a payload finding plus any auto-run surface in the same
-change becomes a block ("${COMBINED_SUFFIX.trim()}"), and a folder-open task, automatic tasks turned on and a
-hidden \`.vscode\` together block. See [How findings are graded](../../README.md#how-findings-are-graded).
+change becomes a block ("${COMBINED_SUFFIX.trim()}"). In a full scan, a folder-open task plus a fake font
+anywhere in the tree blocks. A folder-open task, automatic tasks turned on and a hidden \`.vscode\` together
+block in either scan. See [How findings are graded](../../README.md#how-findings-are-graded).
 `;
 }
 
@@ -65,4 +68,46 @@ export function ruleDocFiles(): Record<string, string> {
   const files: Record<string, string> = { 'README.md': renderRuleIndex() };
   for (const rule of ALL_RULES) files[`${rule.meta.id}.md`] = renderRuleDoc(rule.meta);
   return files;
+}
+
+export interface RuleCatalogEntry {
+  id: string;
+  /** Default level before grading; a finding's own severity wins. */
+  level: Severity;
+  category: Category;
+  title: string;
+  description: string;
+  /** Fixed wording for each reason key a finding can carry. */
+  reasons: Record<string, string>;
+  docsUrl: string;
+}
+
+export interface RuleCatalog {
+  schemaVersion: 1;
+  engineVersion: string;
+  rules: RuleCatalogEntry[];
+}
+
+/**
+ * Machine-readable rule metadata (packages/engine/rules.json). dome-frontend
+ * maps the rule IDs and reason keys in a report to this fixed text.
+ */
+export function ruleCatalog(): RuleCatalog {
+  return {
+    schemaVersion: 1,
+    engineVersion: VERSION,
+    rules: ALL_RULES.map(({ meta }) => ({
+      id: meta.id,
+      level: meta.severity,
+      category: meta.category,
+      title: meta.title,
+      description: meta.summary,
+      reasons: { ...meta.reasons },
+      docsUrl: ruleDocUrl(meta.id),
+    })),
+  };
+}
+
+export function ruleCatalogJson(): string {
+  return `${JSON.stringify(ruleCatalog(), null, 2)}\n`;
 }

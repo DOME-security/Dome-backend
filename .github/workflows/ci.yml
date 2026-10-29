@@ -46,11 +46,50 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm lint
       - run: pnpm build
-      - run: pnpm test
-      - name: Bundle the action and smoke-test it
+      - run: pnpm test:coverage
+      - name: Rebuild the action bundle and fail if the committed one is stale
         run: |
           pnpm --filter @dome-security/action bundle
-          node packages/cli/dist/bin.js --version
+          git diff --exit-code -- packages/action/dist/index.js
+      - run: node packages/cli/dist/bin.js --version
+
+  # Reports false positives against honest public repositories. Informational:
+  # it never fails the pull request.
+  corpus:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm test:corpus
+
+  # Proves the worker container cannot reach hosts other than GitHub.
+  # Informational until it has a track record on GitHub's runners.
+  sandbox:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm test:sandbox
+        env:
+          DOME_SANDBOX_TOPOLOGY: '1'
 
   images:
     runs-on: ubuntu-latest
@@ -60,6 +99,6 @@ jobs:
           persist-credentials: false
       - name: Build service images
         run: |
-          for target in server worker indexer; do
+          for target in server worker indexer egress-proxy; do
             docker build --target "$target" -t "dome-$target:ci" .
           done

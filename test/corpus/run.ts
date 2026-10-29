@@ -28,7 +28,7 @@ for (const { url } of corpus.repos.filter((r) => !filter || r.url.includes(filte
   });
   if (!clone) continue;
   try {
-    result = await scan({ source: new GitTreeSource(clone.dir, 'HEAD', url), intel });
+    result = await scan({ source: new GitTreeSource(clone.dir, 'HEAD', url), intel, repoConfig: 'untrusted' });
   } finally {
     await clone.dispose();
   }

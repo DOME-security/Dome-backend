@@ -250,9 +250,10 @@ export function findModuleTail(text: string, tokens: Token[] = tokenize(text)): 
   return { offset: tail.start, padding: longestBlankRun(text, gapStart, tail.start), declaration };
 }
 
+/** Scans only the gap between two tokens, so checking every gap stays linear overall. */
 function newlineBetween(text: string, from: number, to: number): boolean {
-  const nl = text.indexOf('\n', from);
-  return nl !== -1 && nl < to;
+  for (let i = from; i < to; i++) if (text.charCodeAt(i) === 10) return true;
+  return false;
 }
 
 function longestBlankRun(text: string, from: number, to: number): number {

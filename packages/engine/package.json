@@ -14,9 +14,10 @@
       "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./rules.json": "./rules.json"
   },
-  "files": ["dist"],
+  "files": ["dist", "rules.json"],
   "engines": {
     "node": ">=22"
   },

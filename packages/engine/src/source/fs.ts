@@ -1,4 +1,4 @@
-import { lstat, open, readdir } from 'node:fs/promises';
+import { lstat, open, readdir, readlink } from 'node:fs/promises';
 import path from 'node:path';
 import type { FileSource, TreeEntry } from './types.js';
 
@@ -42,6 +42,12 @@ export class FsSource implements FileSource {
     } finally {
       await handle.close();
     }
+  }
+
+  async readLink(relPath: string): Promise<string | undefined> {
+    const entries = this.entries ?? new Map((await this.list()).map((e) => [e.path, e]));
+    if (entries.get(relPath)?.kind !== 'symlink') return undefined;
+    return readlink(path.join(this.root, ...relPath.split('/')));
   }
 
   private async walk(relDir: string): Promise<void> {

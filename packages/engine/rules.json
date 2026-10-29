@@ -1,0 +1,330 @@
+{
+  "schemaVersion": 1,
+  "engineVersion": "0.1.0",
+  "rules": [
+    {
+      "id": "DOME-VSC-001",
+      "level": "review",
+      "category": "autorun",
+      "title": "Task runs on folder open",
+      "description": "A `.vscode/tasks.json` or `*.code-workspace` task sets `runOptions.runOn` to `folderOpen`.",
+      "reasons": {
+        "folderOpen": "A VS Code task is set to run automatically when the folder is opened."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-VSC-001.md"
+    },
+    {
+      "id": "DOME-VSC-002",
+      "level": "review",
+      "category": "autorun",
+      "title": "Automatic tasks turned on",
+      "description": "Workspace settings set `task.allowAutomaticTasks` to `on`.",
+      "reasons": {
+        "allowAutomaticTasks": "Turns on automatic tasks so VS Code does not ask first."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-VSC-002.md"
+    },
+    {
+      "id": "DOME-VSC-003",
+      "level": "review",
+      "category": "autorun",
+      "title": ".vscode hidden from view",
+      "description": "`files.exclude` or `search.exclude` hides `.vscode` or `tasks.json`.",
+      "reasons": {
+        "hidden": "Workspace settings hide the .vscode folder or tasks.json from the file explorer or search."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-VSC-003.md"
+    },
+    {
+      "id": "DOME-VSC-004",
+      "level": "block",
+      "category": "autorun",
+      "title": "Task runs a non-script file with Node",
+      "description": "A task command runs a font, image or other non-script file with `node` (string or array form, `sh -c`, `-r`/`--import`, stdin).",
+      "reasons": {
+        "nonScript": "A VS Code task runs a file that is not a script (such as a font or image) with Node.",
+        "nonScriptViaNpm": "A VS Code task runs an npm script that runs a file that is not a script with Node."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-VSC-004.md"
+    },
+    {
+      "id": "DOME-VSC-005",
+      "level": "block",
+      "category": "autorun",
+      "title": "Task downloads and runs code",
+      "description": "A task command downloads and pipes to a shell (`curl … | sh`, `wget … | bash`, PowerShell `iwr | iex`).",
+      "reasons": {
+        "downloadAndRun": "A VS Code task downloads something from the network and runs it."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-VSC-005.md"
+    },
+    {
+      "id": "DOME-VSC-006",
+      "level": "info",
+      "category": "autorun",
+      "title": "Task output hidden",
+      "description": "Task options hide output (`presentation.reveal: never`, `presentation.echo: false`, `hide: true`) on a task that also runs on folder open or runs a payload.",
+      "reasons": {
+        "hiddenOutput": "The task hides its terminal output, so nothing is visible while it runs."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-VSC-006.md"
+    },
+    {
+      "id": "DOME-NPM-001",
+      "level": "review",
+      "category": "autorun",
+      "title": "Install script added or changed",
+      "description": "`preinstall`, `install`, `postinstall` or `prepare` scripts added or changed (and `binding.gyp`, which npm builds on install).",
+      "reasons": {
+        "installScript": "A package.json script that npm runs automatically on install was added or changed.",
+        "nodeGyp": "A binding.gyp file makes npm run a native build on install."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-NPM-001.md"
+    },
+    {
+      "id": "DOME-NPM-002",
+      "level": "review",
+      "category": "autorun",
+      "title": "Install script runs an unexpected file",
+      "description": "An install script runs a file that is not tracked source or a known build output.",
+      "reasons": {
+        "nonScript": "An install script runs a file that is not a script (such as a font or image).",
+        "missing": "An install script runs a file that is not in the repository and is not a known build output."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-NPM-002.md"
+    },
+    {
+      "id": "DOME-DEV-001",
+      "level": "review",
+      "category": "autorun",
+      "title": "Dev container lifecycle command",
+      "description": "`.devcontainer/devcontainer.json` `initializeCommand`, `onCreateCommand`, `postCreateCommand`, `postStartCommand` or `postAttachCommand` added or changed.",
+      "reasons": {
+        "hostCommand": "The initializeCommand hook runs on the host machine, outside the container, before the container starts.",
+        "lifecycle": "A dev container command runs automatically when the container is created, started or attached.",
+        "payload": "A dev container command downloads and runs code, or runs a file that is not a script with Node.",
+        "pinnedDownload": "A dev container command downloads a script pinned to an exact commit and runs it."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-DEV-001.md"
+    },
+    {
+      "id": "DOME-AGT-001",
+      "level": "review",
+      "category": "autorun",
+      "title": "AI agent hooks or auto-approved tools",
+      "description": "AI agent hooks and auto-approved tools: `.claude/settings*.json`, `.cursor/hooks.json`, `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`.",
+      "reasons": {
+        "hooks": "Project settings define hooks that an AI coding agent runs automatically.",
+        "autoApprove": "Project settings let an AI coding agent run any shell command without asking.",
+        "mcpAutoEnable": "Project settings enable every MCP server in the repository without asking.",
+        "mcpServer": "A project MCP configuration starts a local command when an AI agent loads the repository."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-AGT-001.md"
+    },
+    {
+      "id": "DOME-GHA-001",
+      "level": "review",
+      "category": "autorun",
+      "title": "Workflow added, changed or risky",
+      "description": "New or changed workflow under `.github/workflows/`, weighted up for `pull_request_target`, secrets passed to `curl`/`wget`, or posting to raw IPs.",
+      "reasons": {
+        "changed": "A GitHub Actions workflow was added or changed.",
+        "pullRequestTarget": "The workflow runs on pull_request_target, with write access and secrets, for pull requests from forks.",
+        "checksOutPrHead": "The workflow runs on pull_request_target and checks out the pull request's own code.",
+        "secretsToNetwork": "A workflow step sends repository secrets to a network tool.",
+        "rawIp": "A workflow step contacts a raw IP address."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-GHA-001.md"
+    },
+    {
+      "id": "DOME-GIT-001",
+      "level": "info",
+      "category": "autorun",
+      "title": ".gitignore stops ignoring .vscode or .env",
+      "description": "`.gitignore` change that stops ignoring `.vscode` or `.env`.",
+      "reasons": {
+        "unignored": ".gitignore explicitly re-includes .vscode or .env files.",
+        "removed": ".gitignore no longer ignores .vscode or .env."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-GIT-001.md"
+    },
+    {
+      "id": "DOME-GIT-002",
+      "level": "review",
+      "category": "autorun",
+      "title": "Git hooks committed to the repository",
+      "description": "Git hooks committed to the repo (`.husky/`, `.githooks/`, `simple-git-hooks`) or a `core.hooksPath` setting.",
+      "reasons": {
+        "committedHook": "A git hook is committed to the repository and runs on commits, checkouts or pushes once installed.",
+        "hooksPath": "A script or config points git at hooks inside the repository with core.hooksPath."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-GIT-002.md"
+    },
+    {
+      "id": "DOME-AST-001",
+      "level": "review",
+      "category": "payload",
+      "title": "Font file is not a font",
+      "description": "A file with a font extension whose bytes are not a real font (checked by format header fields, not just magic bytes).",
+      "reasons": {
+        "notAFont": "A file named like a font does not have a valid font header."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-AST-001.md"
+    },
+    {
+      "id": "DOME-AST-002",
+      "level": "block",
+      "category": "payload",
+      "title": "Asset in an execution position",
+      "description": "An image or font asset referenced from an execution position (npm script, dev container hook, workflow step, shell script, `fork`, or read and evaluated).",
+      "reasons": {
+        "command": "A script or hook runs an image, font or other non-script file with Node.",
+        "fork": "Code starts a new Node process from an image or font file.",
+        "evaluated": "Code reads an image or font file and builds code from it at runtime."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-AST-002.md"
+    },
+    {
+      "id": "DOME-CFG-001",
+      "level": "review",
+      "category": "payload",
+      "title": "Code after the module body in a config file",
+      "description": "Code after the module body in JS/TS config files, especially after a long run of whitespace.",
+      "reasons": {
+        "tail": "A config file has code after its export statement.",
+        "paddedTail": "A config file has code after its export statement, pushed out of view by a long run of whitespace."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-CFG-001.md"
+    },
+    {
+      "id": "DOME-CFG-002",
+      "level": "review",
+      "category": "payload",
+      "title": "Whitespace padding or very long line in source",
+      "description": "Very long lines or heavy whitespace padding in source and config files.",
+      "reasons": {
+        "padding": "A source line has code pushed far to the right by a long run of whitespace.",
+        "longLine": "A source file that is otherwise readable has a single extremely long line."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-CFG-002.md"
+    },
+    {
+      "id": "DOME-CFG-003",
+      "level": "review",
+      "category": "payload",
+      "title": "Runtime code construction in config or route code",
+      "description": "Runtime code construction (`eval`, `new Function`, `vm.runIn*`, detached hidden `child_process` spawns) in config or route files.",
+      "reasons": {
+        "eval": "A config or route file calls eval.",
+        "function": "A config or route file builds a function from a string with Function.",
+        "vm": "A config or route file compiles and runs code with the vm module.",
+        "hiddenSpawn": "A config or route file starts a detached, hidden background process."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-CFG-003.md"
+    },
+    {
+      "id": "DOME-ENV-001",
+      "level": "review",
+      "category": "payload",
+      "title": "Encoded URL in .env with code that sends the environment",
+      "description": "Base64-encoded URLs in `.env` files combined with code that sends `process.env` over the network.",
+      "reasons": {
+        "encodedUrl": "An environment file stores a URL encoded as base64.",
+        "envSent": "Code sends the whole process environment over the network."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-ENV-001.md"
+    },
+    {
+      "id": "DOME-PRP-001",
+      "level": "review",
+      "category": "payload",
+      "title": "Propagation script rewrites history",
+      "description": "Propagation scripts that rewind the clock, amend the last commit and force-push.",
+      "reasons": {
+        "amendForcePush": "A script amends the last commit and force-pushes it.",
+        "rewritesHistory": "A script rewinds the clock, amends the last commit and force-pushes, hiding a change inside existing history."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-PRP-001.md"
+    },
+    {
+      "id": "DOME-IOC-001",
+      "level": "block",
+      "category": "intel",
+      "title": "Known-bad file hash",
+      "description": "File hashes on the known-bad list (synced from the Dome Registry and public advisories).",
+      "reasons": {
+        "knownHash": "This file is byte-for-byte identical to a known malicious file."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-IOC-001.md"
+    },
+    {
+      "id": "DOME-IOC-002",
+      "level": "block",
+      "category": "intel",
+      "title": "Published campaign marker",
+      "description": "Published campaign markers (for example the signatures in OpenSourceMalware's PolinRider YARA rule).",
+      "reasons": {
+        "marker": "This file contains a byte sequence published as a marker of a known malware campaign."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-IOC-002.md"
+    },
+    {
+      "id": "DOME-IOC-003",
+      "level": "block",
+      "category": "intel",
+      "title": "Known malicious npm package",
+      "description": "Dependencies on known malicious npm packages.",
+      "reasons": {
+        "dependency": "package.json depends on a package published as part of a known malware campaign.",
+        "lockfile": "The lockfile resolves a package published as part of a known malware campaign."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-IOC-003.md"
+    },
+    {
+      "id": "DOME-IOC-004",
+      "level": "block",
+      "category": "intel",
+      "title": "Known staging or C2 domain in an executable position",
+      "description": "Known staging and C2 domains in executable positions (tasks, scripts, hooks, workflows, config and route code).",
+      "reasons": {
+        "domain": "Code that runs automatically contacts a domain known to host malware or command-and-control servers."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-IOC-004.md"
+    },
+    {
+      "id": "DOME-STL-001",
+      "level": "review",
+      "category": "stellar",
+      "title": "Code reads Stellar CLI identities",
+      "description": "Code that reads Stellar CLI identities (`~/.config/stellar/identity/*.toml`, plaintext unless created with `--secure-store`).",
+      "reasons": {
+        "reads": "Project code refers to the Stellar CLI identity folder, where secret keys are stored.",
+        "exfiltrates": "Project code refers to the Stellar CLI identity folder and also makes network requests."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-STL-001.md"
+    },
+    {
+      "id": "DOME-STL-002",
+      "level": "review",
+      "category": "stellar",
+      "title": "Code reads browser wallet extension storage",
+      "description": "Code that reads browser wallet extension storage (Freighter and others) from a project file.",
+      "reasons": {
+        "reads": "Project code refers to browser extension storage, where wallet extensions keep their vaults.",
+        "exfiltrates": "Project code refers to browser extension storage and also makes network requests."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-STL-002.md"
+    },
+    {
+      "id": "DOME-STL-003",
+      "level": "review",
+      "category": "stellar",
+      "title": "Hard-coded Stellar secret key",
+      "description": "Hard-coded Stellar secret keys (`S…` strkeys with a valid checksum) committed to the repo.",
+      "reasons": {
+        "secretKey": "A Stellar secret key is committed to the repository."
+      },
+      "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-STL-003.md"
+    }
+  ]
+}

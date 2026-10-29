@@ -1,10 +1,29 @@
-import { isWorkflowFile, parseWorkflow } from '../parsers/workflow.js';
+import { UncheckableInput } from '../parsers/errors.js';
+import { isWorkflowFile, parseWorkflow, type Workflow } from '../parsers/workflow.js';
 import { defineRule, targetsWhere } from './rule.js';
 import { REFS } from './shared.js';
 
 const SECRET = /\$\{\{\s*secrets\.|toJSON\(\s*secrets\s*\)/i;
+const ALL_SECRETS = /toJSON\(\s*secrets\s*\)|\$\{\{\s*secrets\s*\}\}/i;
+/** `"${{ secrets.HOOK }}?branch=x"`: the secret is the URL being called, not data sent to one. */
+const SECRET_AS_URL = /(?:^|\s)["']?\$\{\{\s*secrets\.\w+\s*\}\}[?/]\S*/g;
+const HTTPS_HOST_URL = /\bhttps:\/\/(?![\d.]+(?:[:/\s"']|$))[A-Za-z0-9]/;
 const NETWORK_TOOL = /\b(?:curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|nc|ncat)\b/i;
-const RAW_IP_URL = /\bhttps?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/;
+const RAW_IP_URL = /\bhttps?:\/\/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\w-]|\.\w)/g;
+
+/** Loopback, private and link-local addresses never leave the runner's network. */
+function isLocalAddress([a, b]: number[]): boolean {
+  return a === 127 || a === 10 || a === 0 || (a === 172 && b! >= 16 && b! <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254);
+}
+
+/** The first URL with a public raw IP address, if any. */
+function publicIpUrl(run: string): RegExpMatchArray | undefined {
+  for (const m of run.matchAll(RAW_IP_URL)) {
+    const octets = m.slice(1, 5).map(Number);
+    if (octets.every((o) => o <= 255) && !isLocalAddress(octets)) return m;
+  }
+  return undefined;
+}
 const PR_HEAD_REF = /github\.event\.pull_request\.head\.(?:sha|ref)|github\.head_ref/;
 
 export default defineRule(
@@ -25,7 +44,7 @@ export default defineRule(
     doc: {
       why: 'GhostAction added workflows that read every repository secret and posted them to an attacker server. `pull_request_target` combined with a checkout of the pull request runs untrusted code with write access.',
       falsePositives:
-        'Every honest workflow change is reported for review in a diff scan. Deployment steps that pass a single secret to `curl` for an API call will also be flagged; check the destination.',
+        'Every honest workflow change is reported for review in a diff scan. One named secret sent over HTTPS to a named host (an API token for a deployment) is reviewed, not blocked; bulk secret dumps, plain HTTP and raw public IP addresses are blocked. Loopback and private addresses (`127.0.0.1`, `10.x`, `172.16-31.x`, `192.168.x`) are ignored.',
       references: [REFS.ghostAction, REFS.actionsHardening],
     },
   },
@@ -33,7 +52,14 @@ export default defineRule(
     for (const { path } of targetsWhere(ctx, isWorkflowFile)) {
       const text = await ctx.readText(path);
       if (text === undefined) continue;
-      const wf = parseWorkflow(text);
+      let wf: Workflow | undefined;
+      try {
+        wf = parseWorkflow(text);
+      } catch (error) {
+        if (!(error instanceof UncheckableInput)) throw error;
+        ctx.couldNotCheck(path, 'parse-error');
+        continue;
+      }
       const loc = (needle: string | RegExp) => {
         const index = typeof needle === 'string' ? text.indexOf(needle) : text.search(needle);
         return ctx.locate(path, Math.max(0, index));
@@ -50,12 +76,18 @@ export default defineRule(
       for (const step of wf?.steps ?? []) {
         if (!step.run) continue;
         const firstLine = step.run.split('\n', 1)[0]!.trim();
+        const ipUrl = publicIpUrl(step.run);
         if (SECRET.test(step.run) && NETWORK_TOOL.test(step.run)) {
-          ctx.report('secretsToNetwork', loc(firstLine), 'block');
+          // One named secret sent over HTTPS to a named host is how deployments
+          // authenticate; every other shape of this is how secrets are stolen.
+          const withoutUrlSecrets = step.run.replace(SECRET_AS_URL, ' ');
+          const namesHost = HTTPS_HOST_URL.test(step.run) || withoutUrlSecrets !== step.run;
+          const routine = !ALL_SECRETS.test(step.run) && namesHost && !ipUrl && !/\bhttp:\/\//i.test(step.run);
+          ctx.report('secretsToNetwork', loc(firstLine), routine ? 'review' : 'block');
           reported = true;
         }
-        if (RAW_IP_URL.test(step.run)) {
-          ctx.report('rawIp', loc(RAW_IP_URL), 'block');
+        if (ipUrl) {
+          ctx.report('rawIp', loc(ipUrl[0]), 'block');
           reported = true;
         }
       }

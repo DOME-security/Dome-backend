@@ -1,12 +1,19 @@
 import { CONFIG_PATH, ConfigError, EMPTY_CONFIG, parseConfig, type DomeConfig } from './config.js';
 import { grade } from './grade.js';
 import { sha256Hex } from './hash.js';
+import { UncheckableInput } from './parsers/errors.js';
+import { sanitizePath } from './report/common.js';
 import { decodeText, LineIndex } from './parsers/text.js';
 import { ALL_RULES } from './rules/index.js';
+import { rulesetHash } from './ruleset.js';
 import type { Rule, RuleContext } from './rules/rule.js';
+import { resolveLinks } from './source/links.js';
 import type { FileSource, TreeEntry } from './source/types.js';
 import { EMPTY_INTEL, type Finding, type IncompleteRead, type IntelSet, type Location, type ScanResult, type Severity, type Verdict } from './types.js';
 import { VERSION } from './version.js';
+
+/** Directories and files whose contents run or configure automatically; a link in their place must be resolved. */
+const HIDES_AUTORUN = /(?:^|\/)(?:\.vscode|\.devcontainer|\.github|\.husky|\.githooks|\.cursor|\.claude|workflows|\.devcontainer\.json)$/;
 
 export const DEFAULT_MAX_FILE_BYTES = 8 * 1024 * 1024;
 
@@ -21,6 +28,15 @@ export interface ScanOptions {
    * from the scanned tree in a full scan.
    */
   config?: DomeConfig;
+  /**
+   * Whether a `.dome.yml` read from the repository is trusted. Untrusted (the
+   * default) means the repository can only raise severities: its `fixtures`,
+   * `allow` entries and lowering overrides are ignored, so a hostile
+   * repository cannot mark its own payload as a fixture. Trust it only when
+   * the file comes from a branch you control, such as the protected base of
+   * your own pull request. A `config` passed in directly is always trusted.
+   */
+  repoConfig?: 'trusted' | 'untrusted';
   rules?: readonly Rule[];
   maxFileBytes?: number;
 }
@@ -35,6 +51,7 @@ class FileCache {
     private readonly tree: ReadonlyMap<string, TreeEntry>,
     private readonly maxBytes: number,
     private readonly incomplete: Map<string, IncompleteRead> | undefined,
+    private readonly aliases: ReadonlyMap<string, string> = new Map(),
   ) {}
 
   readBytes(path: string): Promise<Uint8Array | undefined> {
@@ -78,7 +95,7 @@ class FileCache {
       return undefined;
     }
     try {
-      return await this.source.read(path);
+      return await this.source.read(this.aliases.get(path) ?? path);
     } catch {
       this.incomplete?.set(path, { path, reason: 'read-error' });
       return undefined;
@@ -100,20 +117,32 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const maxBytes = options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
   const incomplete = new Map<string, IncompleteRead>();
 
-  const entries = await options.source.list();
+  const { entries, aliases } = await resolveLinks(options.source, await options.source.list());
   const tree = new Map(entries.map((e) => [e.path, e]));
   const changed = options.diff ? new Set(options.diff.changed) : undefined;
-  const targets = changed ? entries.filter((e) => changed.has(e.path)) : entries;
-  const files = new FileCache(options.source, tree, maxBytes, incomplete);
+  // A path is touched when it, the file a link stands for, or a linked directory above it changed.
+  const touched = (path: string): boolean => {
+    if (changed!.has(path) || changed!.has(aliases.get(path) ?? '')) return true;
+    for (let i = path.indexOf('/'); i !== -1; i = path.indexOf('/', i + 1)) if (changed!.has(path.slice(0, i))) return true;
+    return false;
+  };
+  const targets = changed ? entries.filter((e) => touched(e.path)) : entries;
+  const files = new FileCache(options.source, tree, maxBytes, incomplete, aliases);
+  // A link that cannot be resolved inside the tree may hide a whole directory of auto-run files.
+  for (const e of entries) {
+    if (e.kind === 'symlink' && HIDES_AUTORUN.test(e.path)) incomplete.set(e.path, { path: e.path, reason: 'unsupported-entry' });
+  }
 
   let baseFiles: FileCache | undefined;
   if (options.diff) {
-    const baseEntries = await options.diff.base.list();
-    baseFiles = new FileCache(options.diff.base, new Map(baseEntries.map((e) => [e.path, e])), maxBytes, undefined);
+    const base = await resolveLinks(options.diff.base, await options.diff.base.list());
+    baseFiles = new FileCache(options.diff.base, new Map(base.entries.map((e) => [e.path, e])), maxBytes, undefined, base.aliases);
   }
 
   let config = options.config;
+  let trusted = true;
   if (!config) {
+    trusted = options.repoConfig === 'trusted';
     const configText = await (baseFiles ?? files).readText(CONFIG_PATH);
     config = EMPTY_CONFIG;
     if (configText !== undefined) {
@@ -121,21 +150,31 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
         config = parseConfig(configText);
       } catch (error) {
         if (!(error instanceof ConfigError)) throw error;
-        incomplete.set(CONFIG_PATH, { path: CONFIG_PATH, reason: 'invalid-config' });
+        // An untrusted config cannot loosen anything, so a broken one changes nothing.
+        if (trusted) incomplete.set(CONFIG_PATH, { path: CONFIG_PATH, reason: 'invalid-config' });
       }
     }
+    if (!trusted) config = { fixtures: [], allow: [], severity: config.severity };
   }
 
   const raw: Finding[] = [];
   for (const rule of rules) {
+    // The file a rule read last, so a failure can be pinned on it.
+    let current: string | undefined;
     const ctx: RuleContext = {
       scope: options.diff ? 'diff' : 'full',
       targets,
       tree,
       intel,
       maxFileBytes: maxBytes,
-      readText: (p) => files.readText(p),
-      readBytes: (p) => files.readBytes(p),
+      readText: (p) => {
+        current = p;
+        return files.readText(p);
+      },
+      readBytes: (p) => {
+        current = p;
+        return files.readBytes(p);
+      },
       readBaseText: async (p) => (baseFiles ? baseFiles.readText(p) : undefined),
       isChanged: (p) => !changed || changed.has(p),
       locate: (p, offset) => files.locate(p, offset),
@@ -151,13 +190,25 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
           locations: Array.isArray(locations) ? locations : [locations],
         });
       },
+      couldNotCheck: (path, reason) => {
+        if (!incomplete.has(path)) incomplete.set(path, { path, reason });
+      },
     };
-    await rule.run(ctx);
+    try {
+      await rule.run(ctx);
+    } catch (error) {
+      // A rule that cannot finish (a refused or hostile input, or a bug) must
+      // not abort the scan or let it pass: the file is reported as not checked.
+      const path = current ?? '.';
+      const reason = error instanceof UncheckableInput ? 'parse-error' : 'rule-error';
+      if (!incomplete.has(path)) incomplete.set(path, { path, reason, ruleId: rule.meta.id });
+    }
   }
 
   const findings = await grade({
     findings: raw,
     config,
+    allowLowering: trusted,
     scope: options.diff ? 'diff' : 'full',
     hashOf: async (p) => {
       const bytes = await files.readBytes(p);
@@ -168,10 +219,15 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   await options.source.close?.();
   await options.diff?.base.close?.();
 
-  const incompleteList = [...incomplete.values()].sort((a, b) => a.path.localeCompare(b.path));
+  const incompleteList = [...incomplete.values()]
+    .sort((a, b) => a.path.localeCompare(b.path))
+    .map((i) => ({ ...i, path: sanitizePath(i.path) }));
+  // Paths are the only repository-chosen text in a result; every consumer
+  // (JSON, the API, the stored report and its hash) gets them sanitized.
+  for (const f of findings) f.locations = f.locations.map((l) => ({ ...l, path: sanitizePath(l.path) }));
   return {
-    tool: { name: 'dome', version: VERSION },
-    target: options.source.label,
+    tool: { name: 'dome', version: VERSION, rulesHash: rulesetHash(rules, intel) },
+    target: sanitizePath(options.source.label),
     scope: options.diff ? 'diff' : 'full',
     verdict: verdictOf(findings, incompleteList),
     findings,

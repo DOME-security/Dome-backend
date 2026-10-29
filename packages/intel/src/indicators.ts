@@ -7,7 +7,12 @@ export interface Indicator {
   /** SHA-256 hex for hashes, a byte string for markers, a package name, or a domain. */
   value: string;
   campaign: string;
-  /** Public links that justify the listing. At least one is required. */
+  /**
+   * What justifies the listing; at least one entry. Each is a public
+   * `https://` link, a `sha256:<hex>` digest of a published advisory (how
+   * the Dome Registry records evidence), or `stellar-tx:<hex>`, the registry
+   * transaction in which curators approved the indicator.
+   */
   evidence: string[];
   /** ISO date the indicator was added. */
   added?: string;
@@ -32,6 +37,8 @@ const VALUE_RULES: Record<IndicatorKind, RegExp> = {
   marker: /^[\s\S]{12,512}$/,
 };
 
+const EVIDENCE = /^(?:https:\/\/\S{4,2000}|sha256:[0-9a-f]{64}|stellar-tx:[0-9a-f]{64})$/;
+
 /** Validates one indicator; throws an IndicatorError describing the first problem. */
 export function validateIndicator(raw: unknown, where = 'indicator'): Indicator {
   if (!raw || typeof raw !== 'object') throw new IndicatorError(`${where} must be an object`);
@@ -41,8 +48,8 @@ export function validateIndicator(raw: unknown, where = 'indicator'): Indicator 
     throw new IndicatorError(`${where}.value is not a valid ${kind}`);
   }
   if (typeof campaign !== 'string' || !campaign.trim()) throw new IndicatorError(`${where}.campaign is required`);
-  if (!Array.isArray(evidence) || evidence.length === 0 || !evidence.every((e) => typeof e === 'string' && e.startsWith('https://'))) {
-    throw new IndicatorError(`${where}.evidence must list at least one https:// link`);
+  if (!Array.isArray(evidence) || evidence.length === 0 || !evidence.every((e) => typeof e === 'string' && EVIDENCE.test(e))) {
+    throw new IndicatorError(`${where}.evidence must list at least one https:// link, sha256: digest or stellar-tx: hash`);
   }
   if (added !== undefined && (typeof added !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(added))) {
     throw new IndicatorError(`${where}.added must be an ISO date`);

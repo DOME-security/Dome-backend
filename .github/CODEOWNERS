@@ -1,0 +1,14 @@
+# Changes to anything that can run code in CI, change what gets installed, or
+# change what the scanner trusts need a code-owner review. Replace the owner
+# with the maintainers team once it exists.
+/.github/                    @Coredevjay
+/.vscode/                    @Coredevjay
+/package.json                @Coredevjay
+/packages/*/package.json     @Coredevjay
+/pnpm-lock.yaml              @Coredevjay
+/pnpm-workspace.yaml         @Coredevjay
+/.npmrc                      @Coredevjay
+/Dockerfile                  @Coredevjay
+/packages/action/dist/       @Coredevjay
+/packages/intel/             @Coredevjay
+/packages/registry-client/vendor/ @Coredevjay

@@ -16,6 +16,18 @@ const run = (findings: Finding[], config: DomeConfig = EMPTY_CONFIG, hashes: Rec
   grade({ findings, config, scope: 'diff', hashOf: async (p) => hashes[p] });
 
 describe('grade', () => {
+  it('never lowers a severity when lowering is not allowed', async () => {
+    const config: DomeConfig = { ...EMPTY_CONFIG, severity: { 'DOME-VSC-004': 'info', 'DOME-VSC-001': 'block' } };
+    const out = await grade({
+      findings: [finding('DOME-VSC-004', 'block', '.vscode/tasks.json'), finding('DOME-VSC-001', 'review', '.vscode/tasks.json')],
+      config,
+      allowLowering: false,
+      scope: 'full',
+      hashOf: async () => undefined,
+    });
+    expect(out.map((f) => `${f.ruleId}:${f.severity}`)).toEqual(['DOME-VSC-001:block', 'DOME-VSC-004:block']);
+  });
+
   it('keeps a folder-open task alone at review', async () => {
     const [f] = await run([finding('DOME-VSC-001', 'review', '.vscode/tasks.json')]);
     expect(f!.severity).toBe('review');
@@ -34,6 +46,27 @@ describe('grade', () => {
       reason: `Reason.${COMBINED_SUFFIX}`,
       locations: [{ path: 'public/fonts/a.woff2' }, { path: '.vscode/tasks.json' }],
     });
+  });
+
+  it('combines a folder-open task with a fake font in a full scan too', async () => {
+    const out = await grade({
+      findings: [finding('DOME-VSC-001', 'review', '.vscode/tasks.json'), finding('DOME-AST-001', 'review', 'public/a.woff2')],
+      config: EMPTY_CONFIG,
+      scope: 'full',
+      hashOf: async () => undefined,
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ ruleId: 'DOME-AST-001', relatedRules: ['DOME-VSC-001'], severity: 'block' });
+  });
+
+  it('does not join other surfaces and payloads across a full tree', async () => {
+    const out = await grade({
+      findings: [finding('DOME-NPM-001', 'review', 'package.json'), finding('DOME-AST-001', 'review', 'public/a.woff2')],
+      config: EMPTY_CONFIG,
+      scope: 'full',
+      hashOf: async () => undefined,
+    });
+    expect(out.map((f) => f.severity)).toEqual(['review', 'review']);
   });
 
   it('escalates the RMG-Py combination of folder-open, automatic tasks and hidden .vscode', async () => {

@@ -4,7 +4,22 @@ import { defineRule, targetsWhere } from './rule.js';
 import { REFS } from './shared.js';
 
 const EXCLUDE_SETTINGS = ['files.exclude', 'search.exclude', 'files.watcherExclude'];
-const HIDDEN_TARGET = /(?:^|[/*])\.vscode(?:$|[/*{])|tasks\.json|\{[^}]*\bvscode\b/;
+const HIDDEN_PATH = /(?:^|[/*])\.vscode(?:$|[/*{])|tasks\.json/;
+
+/**
+ * True when an exclude pattern hides `.vscode` or `tasks.json`, including
+ * brace forms such as `{.git,.vscode}`. The brace check splits on `}` instead
+ * of using `\{[^}]*vscode`, which backtracks quadratically on a key made of
+ * many `{` characters.
+ */
+export function hidesVscode(pattern: string): boolean {
+  if (HIDDEN_PATH.test(pattern)) return true;
+  for (const group of pattern.split('}')) {
+    const open = group.indexOf('{');
+    if (open !== -1 && /\bvscode\b/.test(group.slice(open))) return true;
+  }
+  return false;
+}
 
 export default defineRule(
   {
@@ -30,7 +45,7 @@ export default defineRule(
       for (const key of EXCLUDE_SETTINGS) {
         for (const [pattern, value, keyNode] of properties(setting(settings, key))) {
           const enabled = value.type === 'boolean' ? value.value === true : value.type === 'object';
-          if (enabled && HIDDEN_TARGET.test(pattern)) ctx.report('hidden', ctx.locate(path, keyNode.offset));
+          if (enabled && hidesVscode(pattern)) ctx.report('hidden', ctx.locate(path, keyNode.offset));
         }
       }
     }

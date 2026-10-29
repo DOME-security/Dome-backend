@@ -1,6 +1,6 @@
 import { RegistryClient } from '@dome-security/registry-client';
 import { PgStore } from '@dome-security/server/store';
-import { runIndexer } from '../indexer.js';
+import { rebuildIndex, runIndexer } from '../indexer.js';
 
 const env = process.env;
 const missing = ['DATABASE_URL', 'STELLAR_RPC_URL', 'REGISTRY_CONTRACT_ID', 'STELLAR_NETWORK_PASSPHRASE', 'INDEXER_START_LEDGER'].filter(
@@ -17,6 +17,12 @@ if (!Number.isInteger(startLedger) || startLedger < 1) {
 }
 
 const store = PgStore.connect(env.DATABASE_URL!, 2);
+
+// `indexer --rebuild` drops the index and re-reads every event from INDEXER_START_LEDGER.
+if (process.argv.includes('--rebuild')) {
+  await rebuildIndex(store);
+  process.stdout.write(`index cleared; rebuilding from ledger ${startLedger}\n`);
+}
 const registry = new RegistryClient({
   rpcUrl: env.STELLAR_RPC_URL!,
   contractId: env.REGISTRY_CONTRACT_ID!,

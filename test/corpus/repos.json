@@ -1,17 +1,149 @@
 {
   "description": "Known-honest public repositories that use the same features attacks abuse. A false-positive run must never block any of them.",
   "repos": [
-    { "url": "https://github.com/expressjs/express", "why": "plain Node library" },
-    { "url": "https://github.com/chalk/chalk", "why": "small ESM package" },
-    { "url": "https://github.com/sindresorhus/got", "why": "network library that sends requests" },
-    { "url": "https://github.com/typicode/husky", "why": "git hooks and prepare scripts" },
-    { "url": "https://github.com/microsoft/vscode-remote-try-node", "why": "dev container lifecycle commands" },
-    { "url": "https://github.com/microsoft/vscode-extension-samples", "why": "many .vscode/tasks.json watch tasks" },
-    { "url": "https://github.com/microsoft/vscode-eslint", "why": "VS Code extension with watch tasks, launch configs and install hooks" },
-    { "url": "https://github.com/nestjs/typescript-starter", "why": "server routes, controllers and config files" },
-    { "url": "https://github.com/vercel/next-learn", "why": "many Next.js apps with route handlers and configs" },
-    { "url": "https://github.com/tailwindlabs/tailwindcss", "why": "config files, fonts and build tooling" },
-    { "url": "https://github.com/stellar/js-stellar-sdk", "why": "Stellar SDK with key handling in tests" },
-    { "url": "https://github.com/prettier/prettier", "why": "large JS codebase with workflows and long lines" }
+    {
+      "url": "https://github.com/expressjs/express",
+      "why": "plain Node library"
+    },
+    {
+      "url": "https://github.com/chalk/chalk",
+      "why": "small ESM package"
+    },
+    {
+      "url": "https://github.com/sindresorhus/got",
+      "why": "network library that sends requests"
+    },
+    {
+      "url": "https://github.com/typicode/husky",
+      "why": "git hooks and prepare scripts"
+    },
+    {
+      "url": "https://github.com/microsoft/vscode-remote-try-node",
+      "why": "dev container lifecycle commands"
+    },
+    {
+      "url": "https://github.com/microsoft/vscode-extension-samples",
+      "why": "many .vscode/tasks.json watch tasks"
+    },
+    {
+      "url": "https://github.com/microsoft/vscode-eslint",
+      "why": "VS Code extension with watch tasks, launch configs and install hooks"
+    },
+    {
+      "url": "https://github.com/nestjs/typescript-starter",
+      "why": "server routes, controllers and config files"
+    },
+    {
+      "url": "https://github.com/vercel/next-learn",
+      "why": "many Next.js apps with route handlers and configs"
+    },
+    {
+      "url": "https://github.com/tailwindlabs/tailwindcss",
+      "why": "config files, fonts and build tooling"
+    },
+    {
+      "url": "https://github.com/stellar/js-stellar-sdk",
+      "why": "Stellar SDK with key handling in tests"
+    },
+    {
+      "url": "https://github.com/prettier/prettier",
+      "why": "large JS codebase with workflows and long lines"
+    },
+    {
+      "url": "https://github.com/vuejs/core",
+      "why": "large TypeScript monorepo with build scripts"
+    },
+    {
+      "url": "https://github.com/sveltejs/svelte",
+      "why": "monorepo with generated code and workflows"
+    },
+    {
+      "url": "https://github.com/vitejs/vite",
+      "why": "build tool with config files and playground apps"
+    },
+    {
+      "url": "https://github.com/webpack/webpack",
+      "why": "bundler whose fixtures contain unusual JavaScript"
+    },
+    {
+      "url": "https://github.com/eslint/eslint",
+      "why": "linter with many config and fixture files"
+    },
+    {
+      "url": "https://github.com/axios/axios",
+      "why": "HTTP client that sends requests"
+    },
+    {
+      "url": "https://github.com/fastify/fastify",
+      "why": "server framework with route handlers"
+    },
+    {
+      "url": "https://github.com/honojs/hono",
+      "why": "web framework with route handlers"
+    },
+    {
+      "url": "https://github.com/TanStack/query",
+      "why": "monorepo with example apps"
+    },
+    {
+      "url": "https://github.com/colinhacks/zod",
+      "why": "validation library"
+    },
+    {
+      "url": "https://github.com/trpc/trpc",
+      "why": "monorepo with Next.js examples"
+    },
+    {
+      "url": "https://github.com/withastro/astro",
+      "why": "monorepo with many example projects"
+    },
+    {
+      "url": "https://github.com/nuxt/nuxt",
+      "why": "framework with Nitro server routes"
+    },
+    {
+      "url": "https://github.com/microsoft/playwright",
+      "why": "browser automation with install hooks and downloads"
+    },
+    {
+      "url": "https://github.com/jestjs/jest",
+      "why": "test runner with fixtures"
+    },
+    {
+      "url": "https://github.com/pnpm/pnpm",
+      "why": "package manager that runs lifecycle scripts by design"
+    },
+    {
+      "url": "https://github.com/stellar/soroban-examples",
+      "why": "Stellar contracts and tests"
+    },
+    {
+      "url": "https://github.com/shadcn-ui/ui",
+      "why": "components, Tailwind and Next.js config"
+    },
+    {
+      "url": "https://github.com/FortAwesome/Font-Awesome",
+      "why": "real font files in many formats"
+    },
+    {
+      "url": "https://github.com/twbs/bootstrap",
+      "why": "real icon fonts and build scripts"
+    },
+    {
+      "url": "https://github.com/remix-run/react-router",
+      "why": "monorepo with framework examples"
+    },
+    {
+      "url": "https://github.com/vercel/commerce",
+      "why": "Next.js app using environment variables"
+    },
+    {
+      "url": "https://github.com/mochajs/mocha",
+      "why": "test runner with fixtures"
+    },
+    {
+      "url": "https://github.com/microsoft/vscode-python-debugger",
+      "why": "VS Code extension with tasks and launch configs"
+    }
   ]
 }

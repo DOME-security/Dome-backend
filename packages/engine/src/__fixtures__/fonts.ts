@@ -27,12 +27,20 @@ export function buildWoff(): Uint8Array {
   return b;
 }
 
+/**
+ * Builds a minimal structurally valid WOFF2 file: one `head` table (known-tag
+ * index 1) and 16 bytes standing in for the compressed stream.
+ */
 export function buildWoff2(): Uint8Array {
-  const b = new Uint8Array(48 + 16);
+  const directory = [0x01, 0x36]; // flags: known tag 1 (head), null transform; origLength 54
+  const b = new Uint8Array(48 + directory.length + 16);
   const v = new DataView(b.buffer);
   v.setUint32(0, 0x774f4632);
+  v.setUint32(4, 0x00010000);
   v.setUint32(8, b.length);
   v.setUint16(12, 1);
+  v.setUint32(16, 12 + 16 + 56);
   v.setUint32(20, 16);
+  b.set(directory, 48);
   return b;
 }

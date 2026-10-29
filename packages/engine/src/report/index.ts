@@ -5,7 +5,7 @@ import { formatSarif } from './sarif.js';
 import { formatText, type TextOptions } from './text.js';
 
 export { formatJson, formatMarkdown, formatSarif, formatText, type TextOptions };
-export { HONESTY_NOTICE, cleanPath, ruleDocUrl, ruleLabel } from './common.js';
+export { HONESTY_NOTICE, cleanPath, ruleDocUrl, ruleLabel, sanitizePath } from './common.js';
 
 export type ReportFormat = 'text' | 'json' | 'sarif' | 'markdown';
 
