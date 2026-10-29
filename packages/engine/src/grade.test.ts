@@ -48,6 +48,27 @@ describe('grade', () => {
     });
   });
 
+  it('combines a folder-open task with a fake font in a full scan too', async () => {
+    const out = await grade({
+      findings: [finding('DOME-VSC-001', 'review', '.vscode/tasks.json'), finding('DOME-AST-001', 'review', 'public/a.woff2')],
+      config: EMPTY_CONFIG,
+      scope: 'full',
+      hashOf: async () => undefined,
+    });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ ruleId: 'DOME-AST-001', relatedRules: ['DOME-VSC-001'], severity: 'block' });
+  });
+
+  it('does not join other surfaces and payloads across a full tree', async () => {
+    const out = await grade({
+      findings: [finding('DOME-NPM-001', 'review', 'package.json'), finding('DOME-AST-001', 'review', 'public/a.woff2')],
+      config: EMPTY_CONFIG,
+      scope: 'full',
+      hashOf: async () => undefined,
+    });
+    expect(out.map((f) => f.severity)).toEqual(['review', 'review']);
+  });
+
   it('escalates the RMG-Py combination of folder-open, automatic tasks and hidden .vscode', async () => {
     const out = await run([
       finding('DOME-VSC-001', 'review', '.vscode/tasks.json'),

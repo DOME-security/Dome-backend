@@ -55,8 +55,9 @@ export function renderRuleIndex(): string {
 ${rows.join('\n')}
 
 Default levels are before grading. In a diff scan, a payload finding plus any auto-run surface in the same
-change becomes a block ("${COMBINED_SUFFIX.trim()}"), and a folder-open task, automatic tasks turned on and a
-hidden \`.vscode\` together block. See [How findings are graded](../../README.md#how-findings-are-graded).
+change becomes a block ("${COMBINED_SUFFIX.trim()}"). In a full scan, a folder-open task plus a fake font
+anywhere in the tree blocks. A folder-open task, automatic tasks turned on and a hidden \`.vscode\` together
+block in either scan. See [How findings are graded](../../README.md#how-findings-are-graded).
 `;
 }
 

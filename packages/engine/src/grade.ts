@@ -14,6 +14,10 @@ export const AUTORUN_SURFACES = new Set([
 /** Payload findings that become a block when an auto-run surface is present in the same scan. */
 export const PAYLOAD_PARTNERS = new Set(['DOME-AST-001', 'DOME-CFG-001', 'DOME-CFG-003', 'DOME-ENV-001']);
 
+/** The pairing that escalates in a full scan too. */
+export const FULL_SCAN_SURFACES = new Set(['DOME-VSC-001']);
+export const FULL_SCAN_PARTNERS = new Set(['DOME-AST-001']);
+
 export const COMBINED_SUFFIX = ' An auto-run surface in the same change can trigger it.';
 
 export function isIndicatorRule(ruleId: string): boolean {
@@ -45,7 +49,8 @@ function sameLocation(a: Location, b: Location): boolean {
  *    and never lowering anything when the configuration is untrusted);
  * 2. fixture paths and hash-pinned `allow` entries drop to info;
  * 3. in a diff scan, a payload plus any auto-run surface in the same change
- *    escalates to block, and the surface findings are folded into it;
+ *    escalates to block, and the surface findings are folded into it; in a
+ *    full scan only a folder-open task plus a fake font does;
  * 4. a folder-open task, automatic tasks turned on and a hidden `.vscode`
  *    together escalate to block.
  */
@@ -93,11 +98,17 @@ export async function grade({ findings, config, allowLowering = true, scope, has
     absorbed.add(font);
   }
 
-  const surfaces = out.filter((f) => active(f) && !absorbed.has(f) && AUTORUN_SURFACES.has(f.ruleId) && f.severity !== 'info');
+  // In a diff scan any auto-run surface arms any payload in the same change.
+  // In a full scan only the PolinRider pairing does: a folder-open task and a
+  // fake font anywhere in the tree. Wider pairings across a whole tree would
+  // mostly join unrelated files.
+  const surfaceRules = scope === 'diff' ? AUTORUN_SURFACES : FULL_SCAN_SURFACES;
+  const partnerRules = scope === 'diff' ? PAYLOAD_PARTNERS : FULL_SCAN_PARTNERS;
+  const surfaces = out.filter((f) => active(f) && !absorbed.has(f) && surfaceRules.has(f.ruleId) && f.severity !== 'info');
 
-  if (scope === 'diff' && surfaces.length > 0) {
+  if (surfaces.length > 0) {
     for (const f of out) {
-      if (!active(f) || absorbed.has(f) || !PAYLOAD_PARTNERS.has(f.ruleId) || f.severity === 'block' || f.severity === 'info') continue;
+      if (!active(f) || absorbed.has(f) || !partnerRules.has(f.ruleId) || f.severity === 'block' || f.severity === 'info') continue;
       f.severity = 'block';
       f.reason += COMBINED_SUFFIX;
       for (const s of surfaces) {

@@ -17,6 +17,15 @@ Part of the Dome Security GitHub org, alongside `dome-frontend` (the web app) an
 - **Three ways to scan:** the `dome` CLI (`dome scan`, `dome sweep`, `dome intel update`, `dome init`) with text, JSON, SARIF and Markdown output; a fork-safe GitHub Action (`pull_request` only, `contents: read`, `report` or `enforce` mode); and a REST API and a GitHub App webhook endpoint that power `dome-frontend`. Org-wide install, private repositories and scheduled sweeps are planned (see [Roadmap](#roadmap)).
 - **Per-repo configuration:** an optional `.dome.yml` marks fixtures, accepts a reviewed task by content hash and raises severities. It can never lower a block caused by a known indicator.
 
+## How findings are graded
+
+Every finding has a level: 🔴 **block**, 🟠 **review** or ⚪ **info**. A scan's verdict is the highest level found, except that a file Dome could not check makes the verdict **incomplete** ("could not check") unless something already blocks. A scan is never clean when a relevant file was too large, unreadable, unparseable or a symlink.
+
+- A rule's default level is listed in [`docs/rules/`](docs/rules/README.md); some reasons set their own (a task that runs a font with `node` always blocks).
+- **Combinations escalate.** In a diff scan, a payload finding (`DOME-AST-001`, `DOME-CFG-001`, `DOME-CFG-003`, `DOME-ENV-001`) plus any auto-run surface in the same change becomes one block. In a full scan, a folder-open task (`DOME-VSC-001`) plus a fake font (`DOME-AST-001`) anywhere in the tree blocks. A folder-open task, automatic tasks turned on and a hidden `.vscode` together block. A folder-open task alone is review.
+- **Configuration.** `.dome.yml` can mark fixture paths, accept a reviewed finding by content hash, and change levels. Known-indicator findings (`DOME-IOC-*`) can never be lowered. A repository's own `.dome.yml` is *untrusted* by default: it can raise levels but its fixtures, allow entries and lowered levels are ignored. It is trusted only where it comes from a branch the maintainers control (the Action, which reads it from the base commit of a pull request, and `dome scan --trust-config`).
+- **Fixed wording.** Every reason is text written in the rule, keyed by rule ID. Nothing the scanned repository wrote reaches a verdict; file paths are the only repository-chosen text in a report, and control, zero-width and bidi characters are stripped from them.
+
 ## Status
 
 Pre-alpha. Milestones M1 to M5 are implemented: the engine with 27 rules, the CLI, the GitHub Action, the API server, scan workers and the registry indexer. M6 (the org-wide GitHub App) has only its webhook intake; install flow, private repositories, scheduled sweeps and alerts are planned. See [Roadmap](#roadmap). The registry contract schema in `packages/registry-client` is assumed and still has to be checked against `dome-contracts`. Rule behaviour is documented in [`docs/rules/`](docs/rules/README.md).
