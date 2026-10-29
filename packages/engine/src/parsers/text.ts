@@ -80,8 +80,11 @@ export function isAssetPath(p: string): boolean {
 
 /** A file Node would only run if someone disguised a script as something else. */
 export function isNonScriptForNode(p: string): boolean {
+  // `jsr:@scope/pkg@0.1.4`, `npm:pkg` and URLs are specifiers, not file names.
+  if (/^[a-z][a-z0-9+.-]+:/i.test(p)) return false;
   const ext = extname(p);
-  if (ext === '') return false;
+  // An all-digit suffix is a version number, not an extension.
+  if (ext === '' || /^\d+$/.test(ext)) return false;
   return !NODE_SCRIPT_EXTENSIONS.has(ext);
 }
 

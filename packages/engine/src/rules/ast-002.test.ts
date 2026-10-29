@@ -22,6 +22,11 @@ describe('DOME-AST-002', () => {
     expect(await runRule(rule, { 'lib/load.js': loader })).toEqual(['block:evaluated@lib/load.js:1']);
   });
 
+  it('does not mistake package specifiers or versions for asset extensions', async () => {
+    const steps = '      - run: deno run -A jsr:@scope/publish-on-tag@0.1.4\n      - run: node tools/release-2.0\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': `on: push\njobs:\n  a:\n    steps:\n${steps}` })).toEqual([]);
+  });
+
   it('allows ordinary asset reads', async () => {
     expect(await runRule(rule, { 'app.js': "const logo = fs.readFileSync('logo.png'); res.send(logo);" })).toEqual([]);
   });
