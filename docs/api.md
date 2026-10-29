@@ -1,6 +1,7 @@
 # API reference
 
-All responses are JSON. Errors are `{ "error": "<message>" }` with a 4xx or
+The machine-readable contract is [`openapi.json`](../openapi.json), generated
+from the route schemas (`pnpm openapi`). All responses are JSON. Errors are `{ "error": "<message>" }` with a 4xx or
 5xx status. Unknown fields in request bodies are rejected.
 
 ## `POST /v1/scans`
