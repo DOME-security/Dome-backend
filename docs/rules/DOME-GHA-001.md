@@ -24,7 +24,7 @@ Reasons are fixed text. A finding never quotes the scanned repository.
 
 ## False positives
 
-Every honest workflow change is reported for review in a diff scan. Deployment steps that pass a single secret to `curl` for an API call will also be flagged; check the destination.
+Every honest workflow change is reported for review in a diff scan. One named secret sent over HTTPS to a named host (an API token for a deployment) is reviewed, not blocked; bulk secret dumps, plain HTTP and raw public IP addresses are blocked. Loopback and private addresses (`127.0.0.1`, `10.x`, `172.16-31.x`, `192.168.x`) are ignored.
 
 Accept a reviewed finding with a hash-pinned entry in `.dome.yml` (`dome scan . --explain` prints one). Editing the file invalidates the exception.
 
