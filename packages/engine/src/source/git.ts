@@ -130,6 +130,8 @@ class CatFileBatch {
   }
 }
 
+const MAX_LINK_BYTES = 4096;
+
 /**
  * Reads a tree straight from git objects at a revision, without a checkout.
  * Nothing in the working tree is touched and no filters, hooks or attributes
@@ -157,6 +159,14 @@ export class GitTreeSource implements FileSource {
     if (entry?.kind !== 'file') return undefined;
     this.batch ??= new CatFileBatch(this.repoDir);
     return this.batch.read(entry.oid);
+  }
+
+  async readLink(relPath: string): Promise<string | undefined> {
+    const entry = (await this.index()).get(relPath);
+    if (entry?.kind !== 'symlink' || entry.size > MAX_LINK_BYTES) return undefined;
+    this.batch ??= new CatFileBatch(this.repoDir);
+    const data = await this.batch.read(entry.oid);
+    return data && new TextDecoder().decode(data);
   }
 
   async close(): Promise<void> {

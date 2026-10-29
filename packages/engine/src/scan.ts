@@ -7,9 +7,13 @@ import { decodeText, LineIndex } from './parsers/text.js';
 import { ALL_RULES } from './rules/index.js';
 import { rulesetHash } from './ruleset.js';
 import type { Rule, RuleContext } from './rules/rule.js';
+import { resolveLinks } from './source/links.js';
 import type { FileSource, TreeEntry } from './source/types.js';
 import { EMPTY_INTEL, type Finding, type IncompleteRead, type IntelSet, type Location, type ScanResult, type Severity, type Verdict } from './types.js';
 import { VERSION } from './version.js';
+
+/** Directories and files whose contents run or configure automatically; a link in their place must be resolved. */
+const HIDES_AUTORUN = /(?:^|\/)(?:\.vscode|\.devcontainer|\.github|\.husky|\.githooks|\.cursor|\.claude|workflows|\.devcontainer\.json)$/;
 
 export const DEFAULT_MAX_FILE_BYTES = 8 * 1024 * 1024;
 
@@ -47,6 +51,7 @@ class FileCache {
     private readonly tree: ReadonlyMap<string, TreeEntry>,
     private readonly maxBytes: number,
     private readonly incomplete: Map<string, IncompleteRead> | undefined,
+    private readonly aliases: ReadonlyMap<string, string> = new Map(),
   ) {}
 
   readBytes(path: string): Promise<Uint8Array | undefined> {
@@ -90,7 +95,7 @@ class FileCache {
       return undefined;
     }
     try {
-      return await this.source.read(path);
+      return await this.source.read(this.aliases.get(path) ?? path);
     } catch {
       this.incomplete?.set(path, { path, reason: 'read-error' });
       return undefined;
@@ -112,16 +117,26 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const maxBytes = options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
   const incomplete = new Map<string, IncompleteRead>();
 
-  const entries = await options.source.list();
+  const { entries, aliases } = await resolveLinks(options.source, await options.source.list());
   const tree = new Map(entries.map((e) => [e.path, e]));
   const changed = options.diff ? new Set(options.diff.changed) : undefined;
-  const targets = changed ? entries.filter((e) => changed.has(e.path)) : entries;
-  const files = new FileCache(options.source, tree, maxBytes, incomplete);
+  // A path is touched when it, the file a link stands for, or a linked directory above it changed.
+  const touched = (path: string): boolean => {
+    if (changed!.has(path) || changed!.has(aliases.get(path) ?? '')) return true;
+    for (let i = path.indexOf('/'); i !== -1; i = path.indexOf('/', i + 1)) if (changed!.has(path.slice(0, i))) return true;
+    return false;
+  };
+  const targets = changed ? entries.filter((e) => touched(e.path)) : entries;
+  const files = new FileCache(options.source, tree, maxBytes, incomplete, aliases);
+  // A link that cannot be resolved inside the tree may hide a whole directory of auto-run files.
+  for (const e of entries) {
+    if (e.kind === 'symlink' && HIDES_AUTORUN.test(e.path)) incomplete.set(e.path, { path: e.path, reason: 'unsupported-entry' });
+  }
 
   let baseFiles: FileCache | undefined;
   if (options.diff) {
-    const baseEntries = await options.diff.base.list();
-    baseFiles = new FileCache(options.diff.base, new Map(baseEntries.map((e) => [e.path, e])), maxBytes, undefined);
+    const base = await resolveLinks(options.diff.base, await options.diff.base.list());
+    baseFiles = new FileCache(options.diff.base, new Map(base.entries.map((e) => [e.path, e])), maxBytes, undefined, base.aliases);
   }
 
   let config = options.config;

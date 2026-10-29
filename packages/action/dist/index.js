@@ -9090,8 +9090,9 @@ function isAssetPath(p) {
   return FONT_EXTENSIONS.has(ext) || IMAGE_EXTENSIONS.has(ext) || MEDIA_EXTENSIONS.has(ext);
 }
 function isNonScriptForNode(p) {
+  if (/^[a-z][a-z0-9+.-]+:/i.test(p)) return false;
   const ext = extname(p);
-  if (ext === "") return false;
+  if (ext === "" || /^\d+$/.test(ext)) return false;
   return !NODE_SCRIPT_EXTENSIONS.has(ext);
 }
 var JS_EXTENSIONS = /* @__PURE__ */ new Set(["js", "mjs", "cjs", "ts", "mts", "cts", "jsx", "tsx"]);
@@ -11455,6 +11456,12 @@ var cfg_003_default = defineRule(
 );
 
 // ../engine/src/rules/dev-001.ts
+var URL_IN_COMMAND = /https?:\/\/[^\s'"|;&)]+/gi;
+var PINNED_RAW_URL = /^https:\/\/raw\.githubusercontent\.com\/[\w.-]+\/[\w.-]+\/[0-9a-f]{40}\/[^\s]+$/;
+function fetchesOnlyPinnedFiles(command2) {
+  const urls = command2.match(URL_IN_COMMAND) ?? [];
+  return urls.length > 0 && urls.every((u) => PINNED_RAW_URL.test(u));
+}
 var dev_001_default = defineRule(
   {
     id: "DOME-DEV-001",
@@ -11465,11 +11472,12 @@ var dev_001_default = defineRule(
     reasons: {
       hostCommand: "The initializeCommand hook runs on the host machine, outside the container, before the container starts.",
       lifecycle: "A dev container command runs automatically when the container is created, started or attached.",
-      payload: "A dev container command downloads and runs code, or runs a file that is not a script with Node."
+      payload: "A dev container command downloads and runs code, or runs a file that is not a script with Node.",
+      pinnedDownload: "A dev container command downloads a script pinned to an exact commit and runs it."
     },
     doc: {
       why: "Dev container hooks run without a prompt when someone opens the repository in a container or a Codespace. `initializeCommand` is the most sensitive: it runs on the host, with access to the developer's keys and wallets.",
-      falsePositives: "Most dev containers run `npm ci` or similar in `postCreateCommand`. Review the command when it is added or changed.",
+      falsePositives: "Most dev containers run `npm ci` or similar in `postCreateCommand`. Review the command when it is added or changed. A script downloaded from `raw.githubusercontent.com` at a full commit SHA is reviewed rather than blocked, because it cannot change after review; anyone can pin a commit in their own repository, so check whose it is.",
       references: [REFS.devcontainerJson, REFS.microsoftNext]
     }
   },
@@ -11481,8 +11489,11 @@ var dev_001_default = defineRule(
       for (const cmd of parseDevcontainer(text)) {
         if (ctx.scope === "diff" && before.has(`${cmd.name}\0${cmd.text}`)) continue;
         const location = ctx.locate(path2, cmd.offset);
-        if (downloadsAndRuns(cmd.text) || nonScriptRuns(cmd.text).length > 0) ctx.report("payload", location, "block");
-        else ctx.report(cmd.name === "initializeCommand" ? "hostCommand" : "lifecycle", location);
+        if (nonScriptRuns(cmd.text).length > 0) ctx.report("payload", location, "block");
+        else if (downloadsAndRuns(cmd.text)) {
+          if (fetchesOnlyPinnedFiles(cmd.text)) ctx.report("pinnedDownload", location, "review");
+          else ctx.report("payload", location, "block");
+        } else ctx.report(cmd.name === "initializeCommand" ? "hostCommand" : "lifecycle", location);
       }
     }
   }
@@ -11539,8 +11550,20 @@ var env_001_default = defineRule(
 
 // ../engine/src/rules/gha-001.ts
 var SECRET = /\$\{\{\s*secrets\.|toJSON\(\s*secrets\s*\)/i;
+var ALL_SECRETS = /toJSON\(\s*secrets\s*\)|\$\{\{\s*secrets\s*\}\}/i;
+var HTTPS_HOST_URL = /\bhttps:\/\/(?![\d.]+(?:[:/\s"']|$))[A-Za-z0-9]/;
 var NETWORK_TOOL = /\b(?:curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|nc|ncat)\b/i;
-var RAW_IP_URL = /\bhttps?:\/\/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/;
+var RAW_IP_URL = /\bhttps?:\/\/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\w-]|\.\w)/g;
+function isLocalAddress([a, b]) {
+  return a === 127 || a === 10 || a === 0 || a === 172 && b >= 16 && b <= 31 || a === 192 && b === 168 || a === 169 && b === 254;
+}
+function publicIpUrl(run2) {
+  for (const m of run2.matchAll(RAW_IP_URL)) {
+    const octets = m.slice(1, 5).map(Number);
+    if (octets.every((o) => o <= 255) && !isLocalAddress(octets)) return m;
+  }
+  return void 0;
+}
 var PR_HEAD_REF = /github\.event\.pull_request\.head\.(?:sha|ref)|github\.head_ref/;
 var gha_001_default = defineRule(
   {
@@ -11558,7 +11581,7 @@ var gha_001_default = defineRule(
     },
     doc: {
       why: "GhostAction added workflows that read every repository secret and posted them to an attacker server. `pull_request_target` combined with a checkout of the pull request runs untrusted code with write access.",
-      falsePositives: "Every honest workflow change is reported for review in a diff scan. Deployment steps that pass a single secret to `curl` for an API call will also be flagged; check the destination.",
+      falsePositives: "Every honest workflow change is reported for review in a diff scan. One named secret sent over HTTPS to a named host (an API token for a deployment) is reviewed, not blocked; bulk secret dumps, plain HTTP and raw public IP addresses are blocked. Loopback and private addresses (`127.0.0.1`, `10.x`, `172.16-31.x`, `192.168.x`) are ignored.",
       references: [REFS.ghostAction, REFS.actionsHardening]
     }
   },
@@ -11590,12 +11613,14 @@ var gha_001_default = defineRule(
       for (const step of wf?.steps ?? []) {
         if (!step.run) continue;
         const firstLine = step.run.split("\n", 1)[0].trim();
+        const ipUrl = publicIpUrl(step.run);
         if (SECRET.test(step.run) && NETWORK_TOOL.test(step.run)) {
-          ctx.report("secretsToNetwork", loc(firstLine), "block");
+          const routine = !ALL_SECRETS.test(step.run) && HTTPS_HOST_URL.test(step.run) && !ipUrl && !/\bhttp:\/\//i.test(step.run);
+          ctx.report("secretsToNetwork", loc(firstLine), routine ? "review" : "block");
           reported = true;
         }
-        if (RAW_IP_URL.test(step.run)) {
-          ctx.report("rawIp", loc(RAW_IP_URL), "block");
+        if (ipUrl) {
+          ctx.report("rawIp", loc(ipUrl[0]), "block");
           reported = true;
         }
       }
@@ -12368,14 +12393,93 @@ function rulesetHash(rules2, intel) {
   return createHash2("sha256").update(canonical).digest("hex");
 }
 
+// ../engine/src/source/links.ts
+var MAX_HOPS = 8;
+function resolveTarget(linkPath, target) {
+  if (target === "" || target.startsWith("/") || /^[A-Za-z]:/.test(target) || target.includes("\0")) return void 0;
+  const parts = linkPath.split("/").slice(0, -1);
+  for (const part of target.replace(/\\/g, "/").split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") {
+      if (parts.length === 0) return void 0;
+      parts.pop();
+    } else {
+      parts.push(part);
+    }
+  }
+  return parts.join("/");
+}
+async function resolveLinks(source, listed) {
+  const byPath = new Map(listed.map((e) => [e.path, e]));
+  const links = listed.filter((e) => e.kind === "symlink");
+  if (links.length === 0 || !source.readLink) return { entries: listed, aliases: /* @__PURE__ */ new Map() };
+  const targets = /* @__PURE__ */ new Map();
+  for (const link of links) targets.set(link.path, await source.readLink(link.path).catch(() => void 0));
+  const follow = (start) => {
+    let current = start;
+    for (let hop = 0; hop < MAX_HOPS; hop++) {
+      if (!byPath.has(current) || byPath.get(current).kind !== "symlink") {
+        const segments = current.split("/");
+        let moved = false;
+        for (let i = 1; i < segments.length; i++) {
+          const prefix = segments.slice(0, i).join("/");
+          if (byPath.get(prefix)?.kind === "symlink") {
+            const resolved2 = resolveTarget(prefix, targets.get(prefix) ?? "");
+            if (resolved2 === void 0) return void 0;
+            current = [resolved2, ...segments.slice(i)].filter(Boolean).join("/");
+            moved = true;
+            break;
+          }
+        }
+        if (!moved) return current;
+        continue;
+      }
+      const resolved = resolveTarget(current, targets.get(current) ?? "");
+      if (resolved === void 0) return void 0;
+      current = resolved;
+    }
+    return void 0;
+  };
+  const entries = [];
+  const aliases = /* @__PURE__ */ new Map();
+  const real = listed.filter((e) => e.kind !== "symlink");
+  const realPaths = new Set(real.map((e) => e.path));
+  entries.push(...real);
+  for (const link of links) {
+    const resolved = follow(link.path);
+    if (resolved !== void 0 && realPaths.has(resolved) && byPath.get(resolved).kind === "file") {
+      aliases.set(link.path, resolved);
+      entries.push({ path: link.path, kind: "file", size: byPath.get(resolved).size });
+      continue;
+    }
+    const prefix = resolved === void 0 ? void 0 : `${resolved}/`;
+    const below = prefix === void 0 ? [] : real.filter((e) => e.path.startsWith(prefix) && e.kind === "file");
+    if (below.length > 0) {
+      for (const e of below) {
+        const virtual = `${link.path}/${e.path.slice(prefix.length)}`;
+        if (!realPaths.has(virtual)) {
+          aliases.set(virtual, e.path);
+          entries.push({ path: virtual, kind: "file", size: e.size });
+        }
+      }
+      continue;
+    }
+    entries.push(link);
+  }
+  entries.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  return { entries, aliases };
+}
+
 // ../engine/src/scan.ts
+var HIDES_AUTORUN = /(?:^|\/)(?:\.vscode|\.devcontainer|\.github|\.husky|\.githooks|\.cursor|\.claude|workflows|\.devcontainer\.json)$/;
 var DEFAULT_MAX_FILE_BYTES = 8 * 1024 * 1024;
 var FileCache = class {
-  constructor(source, tree, maxBytes, incomplete) {
+  constructor(source, tree, maxBytes, incomplete, aliases = /* @__PURE__ */ new Map()) {
     this.source = source;
     this.tree = tree;
     this.maxBytes = maxBytes;
     this.incomplete = incomplete;
+    this.aliases = aliases;
   }
   bytes = /* @__PURE__ */ new Map();
   texts = /* @__PURE__ */ new Map();
@@ -12418,7 +12522,7 @@ var FileCache = class {
       return void 0;
     }
     try {
-      return await this.source.read(path2);
+      return await this.source.read(this.aliases.get(path2) ?? path2);
     } catch {
       this.incomplete?.set(path2, { path: path2, reason: "read-error" });
       return void 0;
@@ -12436,15 +12540,23 @@ async function scan(options) {
   const intel = options.intel ?? EMPTY_INTEL;
   const maxBytes = options.maxFileBytes ?? DEFAULT_MAX_FILE_BYTES;
   const incomplete = /* @__PURE__ */ new Map();
-  const entries = await options.source.list();
+  const { entries, aliases } = await resolveLinks(options.source, await options.source.list());
   const tree = new Map(entries.map((e) => [e.path, e]));
   const changed = options.diff ? new Set(options.diff.changed) : void 0;
-  const targets = changed ? entries.filter((e) => changed.has(e.path)) : entries;
-  const files2 = new FileCache(options.source, tree, maxBytes, incomplete);
+  const touched = (path2) => {
+    if (changed.has(path2) || changed.has(aliases.get(path2) ?? "")) return true;
+    for (let i = path2.indexOf("/"); i !== -1; i = path2.indexOf("/", i + 1)) if (changed.has(path2.slice(0, i))) return true;
+    return false;
+  };
+  const targets = changed ? entries.filter((e) => touched(e.path)) : entries;
+  const files2 = new FileCache(options.source, tree, maxBytes, incomplete, aliases);
+  for (const e of entries) {
+    if (e.kind === "symlink" && HIDES_AUTORUN.test(e.path)) incomplete.set(e.path, { path: e.path, reason: "unsupported-entry" });
+  }
   let baseFiles;
   if (options.diff) {
-    const baseEntries = await options.diff.base.list();
-    baseFiles = new FileCache(options.diff.base, new Map(baseEntries.map((e) => [e.path, e])), maxBytes, void 0);
+    const base = await resolveLinks(options.diff.base, await options.diff.base.list());
+    baseFiles = new FileCache(options.diff.base, new Map(base.entries.map((e) => [e.path, e])), maxBytes, void 0, base.aliases);
   }
   let config = options.config;
   let trusted = true;
@@ -12637,6 +12749,7 @@ var CatFileBatch = class {
     }
   }
 };
+var MAX_LINK_BYTES = 4096;
 var GitTreeSource = class {
   constructor(repoDir, rev, label) {
     this.repoDir = repoDir;
@@ -12654,6 +12767,13 @@ var GitTreeSource = class {
     if (entry?.kind !== "file") return void 0;
     this.batch ??= new CatFileBatch(this.repoDir);
     return this.batch.read(entry.oid);
+  }
+  async readLink(relPath) {
+    const entry = (await this.index()).get(relPath);
+    if (entry?.kind !== "symlink" || entry.size > MAX_LINK_BYTES) return void 0;
+    this.batch ??= new CatFileBatch(this.repoDir);
+    const data = await this.batch.read(entry.oid);
+    return data && new TextDecoder().decode(data);
   }
   async close() {
     this.batch?.close();
@@ -13054,7 +13174,7 @@ function readInputs(env) {
     token: input(env, "token")
   };
 }
-async function resolveTarget(env, inputs, workspace, gh) {
+async function resolveTarget2(env, inputs, workspace, gh) {
   const repo = env.GITHUB_REPOSITORY ?? "";
   if (inputs.pullRequest !== void 0) {
     const pr = await getPullRequest(gh(), repo, inputs.pullRequest);
@@ -13102,7 +13222,7 @@ async function run(env, deps) {
   const repo = env.GITHUB_REPOSITORY ?? "";
   let client = deps.github;
   const gh = () => client ??= createClient(inputs.token, env.GITHUB_API_URL);
-  const target = await resolveTarget(env, inputs, workspace, gh);
+  const target = await resolveTarget2(env, inputs, workspace, gh);
   const source = new GitTreeSource(workspace, target.head, repo || workspace);
   let diff;
   if (inputs.scope === "diff" && target.base) {

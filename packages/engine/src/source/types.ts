@@ -18,5 +18,7 @@ export interface FileSource {
   list(): Promise<TreeEntry[]>;
   /** Returns the file's bytes, or `undefined` if it is not a regular file in the tree. */
   read(path: string): Promise<Uint8Array | undefined>;
+  /** For a symlink entry: the link text, never the file it points at. */
+  readLink?(path: string): Promise<string | undefined>;
   close?(): Promise<void>;
 }
