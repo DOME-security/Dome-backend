@@ -9,6 +9,7 @@ export { ALL_RULES, rulesIn, ruleMeta } from './rules/index.js';
 export { ruleCatalog, type RuleCatalog, type RuleCatalogEntry } from './rule-docs.js';
 export type { Rule, RuleContext } from './rules/rule.js';
 export { FsSource, type FsSourceOptions } from './source/fs.js';
+export { TarSource, TarError } from './source/tar.js';
 export { MemorySource } from './source/memory.js';
 export {
   GitTreeSource,
