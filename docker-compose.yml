@@ -15,6 +15,7 @@ services:
       retries: 30
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks: [default, scan]
 
   server:
     build:
@@ -30,16 +31,26 @@ services:
       postgres:
         condition: service_healthy
 
+  # The only route off the workers' network: tunnels HTTPS to github.com and
+  # refuses everything else. test/sandbox proves it.
+  egress-proxy:
+    build:
+      context: .
+      target: egress-proxy
+    networks: [default, scan]
+
   # Scan workers are hostile territory: no credentials, read-only root,
   # no privileges, bounded CPU, memory and process count, scratch space in
-  # tmpfs. Restrict egress to GitHub at the network layer in production
-  # (see docs/deployment.md).
+  # tmpfs, and a network with no route out except the GitHub-only proxy.
   worker:
     build:
       context: .
       target: worker
     environment:
       DATABASE_URL: postgres://dome:dome@postgres:5432/dome
+      HTTPS_PROXY: http://egress-proxy:8888
+      NO_PROXY: postgres
+    networks: [scan]
     read_only: true
     tmpfs:
       - /tmp:size=2g,mode=1777
@@ -52,6 +63,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      egress-proxy:
+        condition: service_started
 
   indexer:
     build:
@@ -67,6 +80,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+networks:
+  # Internal: containers on it have no route to the internet or the host.
+  scan:
+    internal: true
 
 volumes:
   pgdata:

@@ -35,6 +35,9 @@ function gitEnv(): NodeJS.ProcessEnv {
     GIT_ASKPASS: '',
     GIT_PAGER: 'cat',
     LC_ALL: 'C',
+    // Set by the operator, e.g. so sandboxed workers reach GitHub only through an egress proxy.
+    ...(process.env.HTTPS_PROXY ? { HTTPS_PROXY: process.env.HTTPS_PROXY } : {}),
+    ...(process.env.NO_PROXY ? { NO_PROXY: process.env.NO_PROXY } : {}),
   };
 }
 

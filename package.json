@@ -12,6 +12,7 @@
     "build": "tsc -b packages/registry-client/vendor/tsconfig.bindings.json packages/*/tsconfig.json",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:sandbox": "DOME_SANDBOX_TEST=1 vitest run test/sandbox",
     "test:corpus": "tsx --conditions=development test/corpus/run.ts",
     "dev:server": "docker compose up -d postgres && tsx --conditions=development packages/server/src/bin/migrate.ts && tsx --conditions=development packages/server/src/bin/server.ts",
     "clean": "rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo packages/registry-client/vendor/registry-bindings/dist",
