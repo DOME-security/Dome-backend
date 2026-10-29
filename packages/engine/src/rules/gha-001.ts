@@ -5,6 +5,8 @@ import { REFS } from './shared.js';
 
 const SECRET = /\$\{\{\s*secrets\.|toJSON\(\s*secrets\s*\)/i;
 const ALL_SECRETS = /toJSON\(\s*secrets\s*\)|\$\{\{\s*secrets\s*\}\}/i;
+/** `"${{ secrets.HOOK }}?branch=x"`: the secret is the URL being called, not data sent to one. */
+const SECRET_AS_URL = /(?:^|\s)["']?\$\{\{\s*secrets\.\w+\s*\}\}[?/]\S*/g;
 const HTTPS_HOST_URL = /\bhttps:\/\/(?![\d.]+(?:[:/\s"']|$))[A-Za-z0-9]/;
 const NETWORK_TOOL = /\b(?:curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|nc|ncat)\b/i;
 const RAW_IP_URL = /\bhttps?:\/\/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\w-]|\.\w)/g;
@@ -78,7 +80,9 @@ export default defineRule(
         if (SECRET.test(step.run) && NETWORK_TOOL.test(step.run)) {
           // One named secret sent over HTTPS to a named host is how deployments
           // authenticate; every other shape of this is how secrets are stolen.
-          const routine = !ALL_SECRETS.test(step.run) && HTTPS_HOST_URL.test(step.run) && !ipUrl && !/\bhttp:\/\//i.test(step.run);
+          const withoutUrlSecrets = step.run.replace(SECRET_AS_URL, ' ');
+          const namesHost = HTTPS_HOST_URL.test(step.run) || withoutUrlSecrets !== step.run;
+          const routine = !ALL_SECRETS.test(step.run) && namesHost && !ipUrl && !/\bhttp:\/\//i.test(step.run);
           ctx.report('secretsToNetwork', loc(firstLine), routine ? 'review' : 'block');
           reported = true;
         }

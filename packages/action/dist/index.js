@@ -11551,6 +11551,7 @@ var env_001_default = defineRule(
 // ../engine/src/rules/gha-001.ts
 var SECRET = /\$\{\{\s*secrets\.|toJSON\(\s*secrets\s*\)/i;
 var ALL_SECRETS = /toJSON\(\s*secrets\s*\)|\$\{\{\s*secrets\s*\}\}/i;
+var SECRET_AS_URL = /(?:^|\s)["']?\$\{\{\s*secrets\.\w+\s*\}\}[?/]\S*/g;
 var HTTPS_HOST_URL = /\bhttps:\/\/(?![\d.]+(?:[:/\s"']|$))[A-Za-z0-9]/;
 var NETWORK_TOOL = /\b(?:curl|wget|Invoke-WebRequest|Invoke-RestMethod|iwr|irm|nc|ncat)\b/i;
 var RAW_IP_URL = /\bhttps?:\/\/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\w-]|\.\w)/g;
@@ -11615,7 +11616,9 @@ var gha_001_default = defineRule(
         const firstLine = step.run.split("\n", 1)[0].trim();
         const ipUrl = publicIpUrl(step.run);
         if (SECRET.test(step.run) && NETWORK_TOOL.test(step.run)) {
-          const routine = !ALL_SECRETS.test(step.run) && HTTPS_HOST_URL.test(step.run) && !ipUrl && !/\bhttp:\/\//i.test(step.run);
+          const withoutUrlSecrets = step.run.replace(SECRET_AS_URL, " ");
+          const namesHost = HTTPS_HOST_URL.test(step.run) || withoutUrlSecrets !== step.run;
+          const routine = !ALL_SECRETS.test(step.run) && namesHost && !ipUrl && !/\bhttp:\/\//i.test(step.run);
           ctx.report("secretsToNetwork", loc(firstLine), routine ? "review" : "block");
           reported = true;
         }
