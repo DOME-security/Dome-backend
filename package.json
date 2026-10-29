@@ -15,14 +15,19 @@
     "test:corpus": "tsx --conditions=development test/corpus/run.ts",
     "dev:server": "docker compose up -d postgres && tsx --conditions=development packages/server/src/bin/migrate.ts && tsx --conditions=development packages/server/src/bin/server.ts",
     "clean": "rm -rf packages/*/dist packages/*/tsconfig.tsbuildinfo",
-    "docs:rules": "tsx --conditions=development packages/engine/src/bin/rule-docs.ts"
+    "docs:rules": "tsx --conditions=development packages/engine/src/bin/rule-docs.ts",
+    "test:coverage": "vitest run --coverage packages/engine test/scenarios.test.ts"
   },
   "devDependencies": {
     "@dome-security/engine": "workspace:*",
     "@dome-security/intel": "workspace:*",
     "@eslint/js": "9.34.0",
     "@types/node": "22.18.0",
+    "@vitest/coverage-v8": "3.2.4",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "eslint": "9.34.0",
+    "fast-check": "4.10.2",
     "tsx": "4.20.5",
     "typescript": "5.9.3",
     "typescript-eslint": "8.41.0",

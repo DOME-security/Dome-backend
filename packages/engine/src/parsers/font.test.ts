@@ -37,6 +37,54 @@ describe('checkFont', () => {
     expect(checkFont(woff).valid).toBe(false);
   });
 
+  it('accepts a TrueType collection and a WOFF2-wrapped collection', () => {
+    const sfnt = buildSfnt();
+    const ttc = new Uint8Array(16 + sfnt.length);
+    const v = new DataView(ttc.buffer);
+    v.setUint32(0, 0x74746366);
+    v.setUint32(4, 0x00010000);
+    v.setUint32(8, 1);
+    v.setUint32(12, 16);
+    ttc.set(sfnt, 16);
+    expect(checkFont(ttc)).toEqual({ valid: true, format: 'ttc' });
+    v.setUint32(8, 0);
+    expect(checkFont(ttc).valid).toBe(false);
+
+    const collection = [0x00, 0x01, 0x00, 0x00, 1, 1, 0x00, 0x01, 0x00, 0x00, 0]; // version, 1 font, 1 table, flavor, index 0
+    const directory = [0x01, 0x36];
+    const w = new Uint8Array(48 + directory.length + collection.length + 16);
+    const wv = new DataView(w.buffer);
+    wv.setUint32(0, 0x774f4632);
+    wv.setUint32(4, 0x74746366);
+    wv.setUint32(8, w.length);
+    wv.setUint16(12, 1);
+    wv.setUint32(20, 16);
+    w.set(directory, 48);
+    w.set(collection, 48 + directory.length);
+    expect(checkFont(w)).toEqual({ valid: true, format: 'woff2' });
+    w[48 + directory.length + 10] = 5; // table index out of range
+    expect(checkFont(w).valid).toBe(false);
+  });
+
+  it('accepts 255UInt16 and multi-byte UIntBase128 encodings', () => {
+    const b = buildWoff2();
+    const longer = new Uint8Array(b.length + 1);
+    longer.set(b.subarray(0, 49));
+    longer.set([0x81, 0x00], 49); // origLength 128 in two bytes
+    longer.set(b.subarray(50), 51);
+    new DataView(longer.buffer).setUint32(8, longer.length);
+    expect(checkFont(longer)).toEqual({ valid: true, format: 'woff2' });
+  });
+
+  it('rejects an EOT whose font data does not fit or whose version is unknown', () => {
+    const eot = buildEot();
+    new DataView(eot.buffer).setUint32(4, 99, true);
+    expect(checkFont(eot).valid).toBe(false);
+    const eot2 = buildEot();
+    new DataView(eot2.buffer).setUint32(8, 7, true);
+    expect(checkFont(eot2).valid).toBe(false);
+  });
+
   describe('WOFF2', () => {
     const edit = (fn: (b: Uint8Array, v: DataView) => void) => {
       const b = buildWoff2();

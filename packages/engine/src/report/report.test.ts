@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scanFiles } from '../__fixtures__/run-rule.js';
 import type { ScanResult } from '../types.js';
-import { formatJson, formatMarkdown, formatSarif, formatText, HONESTY_NOTICE } from './index.js';
+import { formatJson, formatMarkdown, formatReport, formatSarif, formatText, HONESTY_NOTICE, REPORT_FORMATS } from './index.js';
 
 const polinRiderLike = {
   '.vscode/tasks.json': JSON.stringify(
@@ -41,6 +41,22 @@ describe('reporters', () => {
     expect(run.tool.driver.rules.length).toBeGreaterThanOrEqual(27);
     expect(run.results.map((x: { level: string }) => x.level)).toContain('error');
     for (const res of run.results) expect(run.tool.driver.rules[res.ruleIndex].id).toBe(res.ruleId);
+  });
+
+  it('dispatches every format through formatReport', async () => {
+    const r = await result();
+    for (const format of REPORT_FORMATS) expect(formatReport(r, format).trimEnd().length).toBeGreaterThan(0);
+    expect(formatReport(r, 'json')).toBe(formatJson(r));
+    expect(formatReport(r, 'text', { color: true })).toContain('\u001b[31;1m');
+  });
+
+  it('lists files it could not check in every human-readable format', async () => {
+    const r = await scanFiles({ '.github/workflows/x.yml': 'jobs: [' });
+    expect(r.verdict).toBe('incomplete');
+    expect(formatText(r)).toContain('Could not check:');
+    expect(formatMarkdown(r)).toContain('### ⚪ Dome: could not check every file');
+    expect(formatMarkdown(r)).toContain('(parse-error)');
+    expect(JSON.parse(formatSarif(r)).runs[0].invocations[0].executionSuccessful).toBe(false);
   });
 
   it('neutralizes hostile file names', async () => {
