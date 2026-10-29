@@ -53,6 +53,14 @@ describe('dome scan', () => {
     expect(t.out).toContain('No known pattern found is not the same as safe.');
   });
 
+  it('ignores the target\'s own fixtures unless --trust-config is given', async () => {
+    await put('.vscode/tasks.json', fakeFontTask);
+    await put('public/fonts/fa-solid-500.woff2', 'DOME_FIXTURE_NOT_A_FONT');
+    await put('.dome.yml', 'fixtures: ["**"]\n');
+    expect(await main(['scan', '.'], io())).toBe(2);
+    expect(await main(['scan', '.', '--trust-config'], io())).toBe(0);
+  });
+
   it('exits 2 and explains a blocked payload', async () => {
     await put('.vscode/tasks.json', fakeFontTask);
     await put('public/fonts/fa-solid-500.woff2', 'DOME_FIXTURE_NOT_A_FONT');

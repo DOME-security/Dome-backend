@@ -139,7 +139,9 @@ export async function run(env: NodeJS.ProcessEnv, deps: ActionDeps): Promise<num
     }
   }
 
-  const result = await scan({ source, diff, intel: toIntelSet(bundledIndicators()) });
+  // In a diff scan .dome.yml comes from the base commit, and a full scan reads
+  // the pushed branch itself, so the maintainers' own file is trusted.
+  const result = await scan({ source, diff, intel: toIntelSet(bundledIndicators()), repoConfig: 'trusted' });
   const markdown = formatMarkdown(result);
   const sarif = formatSarif(result);
 

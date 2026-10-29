@@ -23,6 +23,11 @@ export function isIndicatorRule(ruleId: string): boolean {
 export interface GradeInput {
   findings: Finding[];
   config: DomeConfig;
+  /**
+   * Whether `severity` overrides may lower a finding. False for configuration
+   * read from an untrusted repository. Indicator findings are never lowered.
+   */
+  allowLowering?: boolean;
   /** Payload and surface findings only combine within one change (a diff scan). */
   scope: 'full' | 'diff';
   /** SHA-256 of a file in the scanned tree, for hash-pinned exceptions. */
@@ -36,21 +41,23 @@ function sameLocation(a: Location, b: Location): boolean {
 /**
  * Applies configuration and combines findings into final verdicts:
  *
- * 1. `severity` overrides from `.dome.yml` (never lowering an indicator block);
+ * 1. `severity` overrides from `.dome.yml` (never lowering an indicator block,
+ *    and never lowering anything when the configuration is untrusted);
  * 2. fixture paths and hash-pinned `allow` entries drop to info;
  * 3. in a diff scan, a payload plus any auto-run surface in the same change
  *    escalates to block, and the surface findings are folded into it;
  * 4. a folder-open task, automatic tasks turned on and a hidden `.vscode`
  *    together escalate to block.
  */
-export async function grade({ findings, config, scope, hashOf }: GradeInput): Promise<Finding[]> {
+export async function grade({ findings, config, allowLowering = true, scope, hashOf }: GradeInput): Promise<Finding[]> {
   const isFixture = fixtureMatcher(config);
   const out: Finding[] = [];
 
   for (const original of findings) {
     const f: Finding = { ...original, locations: [...original.locations], relatedRules: [...original.relatedRules] };
     const override = config.severity[f.ruleId];
-    if (override && !(isIndicatorRule(f.ruleId) && SEVERITY_ORDER[override] < SEVERITY_ORDER[f.severity])) {
+    const lowers = override !== undefined && SEVERITY_ORDER[override] < SEVERITY_ORDER[f.severity];
+    if (override && !(lowers && (!allowLowering || isIndicatorRule(f.ruleId)))) {
       f.severity = override;
     }
     if (!isIndicatorRule(f.ruleId)) {

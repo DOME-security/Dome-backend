@@ -63,7 +63,13 @@ export async function processJob(job: ScanJob, intel: IntelSet, git: GitOps = re
       });
       diff = { base: new GitTreeSource(clone.dir, mergeBase), changed: await gitChangedPaths(clone.dir, mergeBase, headSha) };
     }
-    const result = await scan({ source: new GitTreeSource(clone.dir, headSha, `${job.owner}/${job.repo}`), diff, intel });
+    // The service scans other people's repositories: their .dome.yml can raise severities, never lower them.
+    const result = await scan({
+      source: new GitTreeSource(clone.dir, headSha, `${job.owner}/${job.repo}`),
+      diff,
+      intel,
+      repoConfig: 'untrusted',
+    });
     return { result, headSha };
   } finally {
     await clone.dispose();

@@ -21,6 +21,15 @@ export interface ScanOptions {
    * from the scanned tree in a full scan.
    */
   config?: DomeConfig;
+  /**
+   * Whether a `.dome.yml` read from the repository is trusted. Untrusted (the
+   * default) means the repository can only raise severities: its `fixtures`,
+   * `allow` entries and lowering overrides are ignored, so a hostile
+   * repository cannot mark its own payload as a fixture. Trust it only when
+   * the file comes from a branch you control, such as the protected base of
+   * your own pull request. A `config` passed in directly is always trusted.
+   */
+  repoConfig?: 'trusted' | 'untrusted';
   rules?: readonly Rule[];
   maxFileBytes?: number;
 }
@@ -113,7 +122,9 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   }
 
   let config = options.config;
+  let trusted = true;
   if (!config) {
+    trusted = options.repoConfig === 'trusted';
     const configText = await (baseFiles ?? files).readText(CONFIG_PATH);
     config = EMPTY_CONFIG;
     if (configText !== undefined) {
@@ -121,9 +132,11 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
         config = parseConfig(configText);
       } catch (error) {
         if (!(error instanceof ConfigError)) throw error;
-        incomplete.set(CONFIG_PATH, { path: CONFIG_PATH, reason: 'invalid-config' });
+        // An untrusted config cannot loosen anything, so a broken one changes nothing.
+        if (trusted) incomplete.set(CONFIG_PATH, { path: CONFIG_PATH, reason: 'invalid-config' });
       }
     }
+    if (!trusted) config = { fixtures: [], allow: [], severity: config.severity };
   }
 
   const raw: Finding[] = [];
@@ -158,6 +171,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const findings = await grade({
     findings: raw,
     config,
+    allowLowering: trusted,
     scope: options.diff ? 'diff' : 'full',
     hashOf: async (p) => {
       const bytes = await files.readBytes(p);

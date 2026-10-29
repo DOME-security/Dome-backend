@@ -16,6 +16,18 @@ const run = (findings: Finding[], config: DomeConfig = EMPTY_CONFIG, hashes: Rec
   grade({ findings, config, scope: 'diff', hashOf: async (p) => hashes[p] });
 
 describe('grade', () => {
+  it('never lowers a severity when lowering is not allowed', async () => {
+    const config: DomeConfig = { ...EMPTY_CONFIG, severity: { 'DOME-VSC-004': 'info', 'DOME-VSC-001': 'block' } };
+    const out = await grade({
+      findings: [finding('DOME-VSC-004', 'block', '.vscode/tasks.json'), finding('DOME-VSC-001', 'review', '.vscode/tasks.json')],
+      config,
+      allowLowering: false,
+      scope: 'full',
+      hashOf: async () => undefined,
+    });
+    expect(out.map((f) => `${f.ruleId}:${f.severity}`)).toEqual(['DOME-VSC-001:block', 'DOME-VSC-004:block']);
+  });
+
   it('keeps a folder-open task alone at review', async () => {
     const [f] = await run([finding('DOME-VSC-001', 'review', '.vscode/tasks.json')]);
     expect(f!.severity).toBe('review');

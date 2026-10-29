@@ -62,7 +62,8 @@ export async function runSweep(args: string[], io: Io): Promise<number> {
   for (const repo of repos) {
     let result: ScanResult;
     try {
-      result = await scan({ source: new FsSource(repo), intel });
+      // Swept clones are exactly the repositories we do not trust.
+      result = await scan({ source: new FsSource(repo), intel, repoConfig: 'untrusted' });
     } catch {
       result = { verdict: 'incomplete', findings: [] } as unknown as ScanResult;
     }

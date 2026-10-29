@@ -26,6 +26,9 @@ Options:
   --format <fmt>         text (default), json, sarif or markdown
   --output <file>        Write the report to a file instead of stdout
   --explain              Print file hashes and ready-to-paste .dome.yml allow entries
+  --trust-config         Apply the target's .dome.yml fixtures, allow entries and
+                         lowered severities. Only for repositories you maintain:
+                         without it a repository can raise severities, never lower them.
   --no-intel-cache       Use only the indicators bundled with this release
   --verbose              Include info-level findings in text output
   --no-color             Disable colors
@@ -63,6 +66,7 @@ export async function runScan(args: string[], io: Io): Promise<number> {
       format: { type: 'string', default: 'text' },
       output: { type: 'string' },
       explain: { type: 'boolean', default: false },
+      'trust-config': { type: 'boolean', default: false },
       'no-intel-cache': { type: 'boolean', default: false },
       verbose: { type: 'boolean', default: false },
       'no-color': { type: 'boolean', default: false },
@@ -80,7 +84,12 @@ export async function runScan(args: string[], io: Io): Promise<number> {
   const intel = await loadIntel({ useCache: !values['no-intel-cache'] });
   const target = await openTarget(positionals[0]!, io.cwd, values.diff);
   try {
-    const result = await scan({ source: target.source, diff: target.diff, intel });
+    const result = await scan({
+      source: target.source,
+      diff: target.diff,
+      intel,
+      repoConfig: values['trust-config'] ? 'trusted' : 'untrusted',
+    });
     const color = io.isTty && !values['no-color'] && !values.output && !io.env.NO_COLOR;
     const report = formatReport(result, format, { color, verbose: values.verbose });
     if (values.output) {
