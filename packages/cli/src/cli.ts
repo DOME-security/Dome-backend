@@ -3,6 +3,7 @@ import { runInit } from './commands/init.js';
 import { runIntel } from './commands/intel.js';
 import { runScan } from './commands/scan.js';
 import { runSweep } from './commands/sweep.js';
+import { runSweepRemote } from './commands/sweep-remote.js';
 import { UsageError, type Io } from './io.js';
 
 export { processIo, type Io } from './io.js';
@@ -12,6 +13,7 @@ export const HELP = `dome ${VERSION}: find code a repository will run without as
 Usage:
   dome scan <path|https-url> [--diff base...head] [--format text|json|sarif|markdown]
   dome sweep <folder>
+  dome sweep-remote --list <file> [--out <file>]
   dome intel <update|status>
   dome init [--write]
 
@@ -22,6 +24,7 @@ It never executes them.
 const COMMANDS: Record<string, (args: string[], io: Io) => Promise<number>> = {
   scan: runScan,
   sweep: runSweep,
+  'sweep-remote': runSweepRemote,
   intel: runIntel,
   init: runInit,
 };

@@ -5,6 +5,8 @@ export interface Io {
   env: NodeJS.ProcessEnv;
   /** Whether stdout is an interactive terminal (for colors). */
   isTty: boolean;
+  /** Replaces the global fetch; tests use it to observe every request a command makes. */
+  fetch?: typeof fetch;
 }
 
 export class UsageError extends Error {

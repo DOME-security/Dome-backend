@@ -10,3 +10,4 @@ coverage/
 !.env.example
 dome.json
 dome.sarif
+*.private.json
