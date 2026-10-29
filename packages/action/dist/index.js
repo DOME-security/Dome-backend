@@ -12646,6 +12646,9 @@ async function scan(options) {
   };
 }
 
+// ../engine/src/source/tar.ts
+var decoder2 = new TextDecoder();
+
 // ../engine/src/source/git.ts
 import { execFile, spawn } from "node:child_process";
 import os from "node:os";
@@ -12672,7 +12675,10 @@ function gitEnv() {
     GIT_CONFIG_GLOBAL: os.devNull,
     GIT_ASKPASS: "",
     GIT_PAGER: "cat",
-    LC_ALL: "C"
+    LC_ALL: "C",
+    // Set by the operator, e.g. so sandboxed workers reach GitHub only through an egress proxy.
+    ...process.env.HTTPS_PROXY ? { HTTPS_PROXY: process.env.HTTPS_PROXY } : {},
+    ...process.env.NO_PROXY ? { NO_PROXY: process.env.NO_PROXY } : {}
   };
 }
 var GitError = class extends Error {
