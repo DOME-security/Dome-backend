@@ -95,11 +95,16 @@ describe('worker', () => {
   it('merges registry indicators with bundled ones', async () => {
     const store = new MemoryStore();
     await store.applyEvents(
-      [{ id: '1', ledger: 1, txHash: 't', contractId: 'C', closedAt: '', type: 'approve', kind: 'domain', value: 'dome-fixture.invalid', campaign: 'T', evidence: ['https://x.invalid'] }],
+      [
+        { id: '1', ledger: 1, txHash: '7'.repeat(64), contractId: 'C', closedAt: '', type: 'approve', hash: 'a'.repeat(64), curator: 'G', approvals: 2, status: 'active' },
+        { id: '2', ledger: 1, txHash: '7'.repeat(64), contractId: 'C', closedAt: '', type: 'approve', hash: 'b'.repeat(64), curator: 'G', approvals: 1, status: 'proposed' },
+      ],
       { name: 'registry', value: 'c' },
     );
     const intel = await loadIntel(store);
-    expect(intel.domains).toContain('dome-fixture.invalid');
+    // Only indicators the curators activated reach the scanner.
+    expect(intel.hashes.has('a'.repeat(64))).toBe(true);
+    expect(intel.hashes.has('b'.repeat(64))).toBe(false);
     expect(intel.packages.has('tailwindcss-style-animate')).toBe(true);
   });
 });

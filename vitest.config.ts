@@ -3,6 +3,10 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   resolve: {
     conditions: ['development'],
+    // The vendored bindings ship no development entry; test against their sources.
+    alias: {
+      '@dome-security/registry-bindings': new URL('./packages/registry-client/vendor/registry-bindings/src/index.ts', import.meta.url).pathname,
+    },
   },
   test: {
     include: ['packages/*/src/**/*.test.ts', 'test/**/*.test.ts'],

@@ -23,8 +23,15 @@ describe('validateIndicator', () => {
     { kind: 'package', value: 'ok', campaign: 'x', evidence: [] },
     { kind: 'package', value: 'ok', campaign: 'x', evidence: ['http://insecure.example'] },
     { kind: 'other', value: 'ok', campaign: 'x', evidence },
+    { kind: 'hash', value: 'a'.repeat(64), campaign: 'x', evidence: ['sha256:xyz'] },
+    { kind: 'hash', value: 'a'.repeat(64), campaign: 'x', evidence: ['stellar-tx:' + 'A'.repeat(64)] },
   ])('rejects %o', (raw) => {
     expect(() => validateIndicator(raw)).toThrow(IndicatorError);
+  });
+
+  it('accepts registry evidence: an advisory digest and the approval transaction', () => {
+    const raw = { kind: 'hash', value: 'a'.repeat(64), campaign: 'demo', evidence: [`sha256:${'b'.repeat(64)}`, `stellar-tx:${'c'.repeat(64)}`] };
+    expect(validateIndicator(raw).evidence).toHaveLength(2);
   });
 });
 

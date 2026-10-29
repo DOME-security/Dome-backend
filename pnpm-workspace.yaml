@@ -1,5 +1,7 @@
 packages:
   - packages/*
+  # The Dome Registry bindings generated in dome-contracts, vendored unmodified.
+  - packages/registry-client/vendor/registry-bindings
 
 # No dependency gets to run install scripts. esbuild ships its binary as a
 # platform-specific optional dependency, so it works without its postinstall.

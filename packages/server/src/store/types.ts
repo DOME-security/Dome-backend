@@ -1,5 +1,12 @@
 import type { ScanResult, Verdict } from '@dome-security/engine';
-import type { ApproveEvent, AttestEvent, IndicatorKind, RevokeEvent } from '@dome-security/registry-client';
+import type {
+  AttestEvent,
+  IndicatorFileKind,
+  IndicatorStatus,
+  OnChainAttestation,
+  RegistryEvent,
+  RegistryVerdict,
+} from '@dome-security/registry-client';
 
 export type ScanStatus = 'queued' | 'running' | 'done' | 'failed';
 export type AttestStatus = 'none' | 'pending' | 'published' | 'failed';
@@ -37,27 +44,43 @@ export interface NewScan {
   source: 'api' | 'webhook';
 }
 
+/** A Dome Registry indicator: the SHA-256 of a malicious file, as mirrored by the indexer. */
 export interface IndicatorRecord {
-  kind: IndicatorKind;
-  value: string;
-  campaign: string;
-  evidence: string[];
-  active: boolean;
+  /** Lowercase hex SHA-256 of the file. */
+  hash: string;
+  /** `null` when the proposal happened before the indexer's first ledger. */
+  fileKind: IndicatorFileKind | null;
+  campaign: string | null;
+  /** Hex SHA-256 of the public advisory, from the proposal. */
+  evidence: string | null;
+  status: IndicatorStatus;
+  approvals: number;
+  retractReason: string | null;
+  /** Ledger and transaction of the latest status change. */
   ledger: number;
   txHash: string;
 }
 
+/** A Dome Registry attestation, as mirrored by the indexer. */
 export interface AttestationRecord {
-  owner: string;
-  repo: string;
+  repoId: string;
+  index: number;
   commit: string;
-  verdict: string;
-  reportHash: string;
+  verdict: RegistryVerdict;
   attester: string;
+  /** From the stored attestation; `null` until the indexer could read it. */
+  reportHash: string | null;
+  rulesHash: string | null;
+  scanner: number | null;
+  retractedBy: string | null;
+  retractReason: string | null;
   ledger: number;
   txHash: string;
   closedAt: string;
 }
+
+/** An attest event plus the fields only the stored attestation has. */
+export type IndexedEvent = Exclude<RegistryEvent, AttestEvent> | (AttestEvent & { stored?: OnChainAttestation });
 
 export interface Page<T> {
   items: T[];
@@ -80,17 +103,29 @@ export interface Store {
    */
   completeScan(id: string, result: ScanResult, options: { attestable: boolean; headSha?: string }): Promise<void>;
   failScan(id: string, error: string): Promise<void>;
-  /** Finished scans waiting to be attested on chain. */
-  pendingAttestations(limit: number): Promise<ScanJob[]>;
+  /**
+   * Finished scans waiting to be attested on chain, oldest first. A `block`
+   * result is only returned once it finished more than `blockHoldMs` ago:
+   * the publication policy gives maintainers time to respond first.
+   */
+  pendingAttestations(limit: number, options?: { blockHoldMs?: number }): Promise<ScanJob[]>;
   markAttested(id: string, outcome: { tx: string } | { error: string }): Promise<void>;
 
-  getIndicator(kind: IndicatorKind, value: string): Promise<IndicatorRecord | undefined>;
+  getIndicator(hash: string): Promise<IndicatorRecord | undefined>;
+  /** Active indicators, ordered by hash. */
   listIndicators(cursor: string | null, limit: number): Promise<Page<IndicatorRecord>>;
-  latestAttestation(owner: string, repo: string): Promise<AttestationRecord | undefined>;
+  /** The newest attestation (highest index) for a registry repo id. */
+  latestAttestation(repoId: string): Promise<AttestationRecord | undefined>;
 
-  /** Applies registry events idempotently; older events never overwrite newer ones. */
-  applyEvents(events: (AttestEvent | ApproveEvent | RevokeEvent)[], cursor: { name: string; value: string }): Promise<void>;
+  /**
+   * Applies registry events and saves the cursor atomically. Idempotent:
+   * replaying events, or applying an older event after a newer one, never
+   * changes the result.
+   */
+  applyEvents(events: IndexedEvent[], cursor: { name: string; value: string }): Promise<void>;
   getCursor(name: string): Promise<string | undefined>;
+  /** Deletes the indexed registry data and the cursor, so the indexer rebuilds from its start ledger. */
+  resetIndex(cursorName: string): Promise<void>;
 
   close(): Promise<void>;
 }
@@ -107,4 +142,19 @@ export function decodeCursor(cursor: string): [string, string] | undefined {
     // fall through
   }
   return undefined;
+}
+
+/**
+ * A registry indicator in the format the engine's intel data uses. Evidence
+ * is the advisory digest from the proposal (when the indexer saw it) and the
+ * registry transaction behind its current status, both publicly checkable.
+ */
+export function toIntelIndicator(r: IndicatorRecord): { kind: 'hash'; value: string; campaign: string; evidence: string[]; fileKind: IndicatorRecord['fileKind'] } {
+  return {
+    kind: 'hash',
+    value: r.hash,
+    campaign: r.campaign ?? 'unknown',
+    evidence: [...(r.evidence ? [`sha256:${r.evidence}`] : []), `stellar-tx:${r.txHash}`],
+    fileKind: r.fileKind,
+  };
 }

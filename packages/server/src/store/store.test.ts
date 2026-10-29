@@ -8,7 +8,7 @@ import { PgStore } from './pg.js';
 import type { Store } from './types.js';
 
 const result = (verdict: ScanResult['verdict']): ScanResult => ({
-  tool: { name: 'dome', version: '0.1.0' },
+  tool: { name: 'dome', version: '0.1.0', rulesHash: 'f'.repeat(64) },
   target: 't',
   scope: 'full',
   verdict,
@@ -17,7 +17,9 @@ const result = (verdict: ScanResult['verdict']): ScanResult => ({
   stats: { filesInTree: 1, filesInScope: 1, rulesRun: 1 },
 });
 
-const meta = (id: string) => ({ id, ledger: 1, txHash: 'aa', contractId: 'C', closedAt: '2026-10-27T00:00:00.000Z' });
+const meta = (id: string) => ({ id, ledger: 1, txHash: 'a'.repeat(64), contractId: 'C', closedAt: '2026-10-27T00:00:00.000Z' });
+const hash = (c: string) => c.repeat(64);
+const repoId = '9'.repeat(64);
 
 function contract(name: string, make: () => Promise<Store>) {
   describe(`${name} store`, () => {
@@ -53,11 +55,19 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await store.latestScan('o', 'r'))?.attestTx).toBe('abc');
     });
 
-    it('never queues an attestation for an incomplete scan', async () => {
+    it('queues an incomplete scan for attestation (published as unreadable)', async () => {
       const { job } = await store.enqueueScan({ repoUrl: 'https://github.com/o/r', owner: 'o', repo: 'r', source: 'api' });
       await store.claimScan('w', 60_000, 3);
       await store.completeScan(job.id, result('incomplete'), { attestable: true });
-      expect((await store.getScan(job.id))?.attestStatus).toBe('none');
+      expect((await store.getScan(job.id))?.attestStatus).toBe('pending');
+    });
+
+    it('holds block results back from publishing for the hold period', async () => {
+      const { job } = await store.enqueueScan({ repoUrl: 'https://github.com/o/b', owner: 'o', repo: 'b', source: 'api' });
+      await store.claimScan('w', 60_000, 3);
+      await store.completeScan(job.id, result('block'), { attestable: true, headSha: 'e'.repeat(40) });
+      expect(await store.pendingAttestations(10, { blockHoldMs: 60 * 60 * 1000 })).toEqual([]);
+      expect((await store.pendingAttestations(10, { blockHoldMs: 0 })).map((j) => j.id)).toEqual([job.id]);
     });
 
     it('records failures', async () => {
@@ -67,47 +77,74 @@ function contract(name: string, make: () => Promise<Store>) {
     });
 
     it('applies registry events idempotently and in order', async () => {
+      const events = [
+        { ...meta('0001'), type: 'propose' as const, hash: hash('b'), fileKind: 'font' as const, campaign: 'demo', evidence: hash('e'), curator: 'G1' },
+        { ...meta('0002'), type: 'approve' as const, hash: hash('b'), curator: 'G2', approvals: 2, status: 'active' as const },
+        { ...meta('0003'), type: 'approve' as const, hash: hash('c'), curator: 'G2', approvals: 1, status: 'proposed' as const },
+        {
+          ...meta('0004'),
+          type: 'attest' as const,
+          repoId,
+          commit: 'c'.repeat(40),
+          verdict: 'clean' as const,
+          attester: 'GA',
+          index: 0,
+          stored: {
+            repoId,
+            index: 0,
+            commit: 'c'.repeat(40),
+            verdict: 'clean' as const,
+            scanner: 1000,
+            rulesHash: hash('1'),
+            reportHash: hash('d'),
+            attester: 'GA',
+            at: 0,
+            retractedBy: null,
+            retractReason: null,
+          },
+        },
+      ];
+      await store.applyEvents(events, { name: 'registry', value: 'cur-1' });
+      await store.applyEvents(events, { name: 'registry', value: 'cur-1' });
+      expect(await store.getIndicator(hash('b'))).toMatchObject({ status: 'active', fileKind: 'font', campaign: 'demo', evidence: hash('e'), approvals: 2 });
+      expect(await store.getIndicator(hash('c'))).toMatchObject({ status: 'proposed', fileKind: null, campaign: null });
+      expect(await store.getCursor('registry')).toBe('cur-1');
+      expect(await store.latestAttestation(repoId)).toMatchObject({ commit: 'c'.repeat(40), reportHash: hash('d'), scanner: 1000, retractedBy: null });
+      expect((await store.listIndicators(null, 10)).items.map((i) => i.hash)).toEqual([hash('b')]);
+
       await store.applyEvents(
         [
-          { ...meta('0002'), type: 'approve', kind: 'hash', value: 'b'.repeat(64), campaign: 'C', evidence: ['https://x.invalid'] },
-          { ...meta('0001'), type: 'revoke', kind: 'hash', value: 'b'.repeat(64) },
-          { ...meta('0003'), type: 'approve', kind: 'package', value: 'evil', campaign: 'C', evidence: [] },
-          {
-            ...meta('0004'),
-            type: 'attest',
-            repo: 'o/r',
-            commit: 'c'.repeat(40),
-            verdict: 'clean',
-            reportHash: 'd'.repeat(64),
-            attester: 'G',
-          },
+          { ...meta('0005'), type: 'retract', hash: hash('b'), curator: 'G1', reason: hash('f') },
+          { ...meta('0006'), type: 'retract_attest', repoId, index: 0, by: 'GA', reason: hash('f') },
         ],
-        { name: 'registry', value: 'cur-1' },
+        { name: 'registry', value: 'cur-2' },
       );
-      expect((await store.getIndicator('hash', 'b'.repeat(64)))?.active).toBe(true);
-      expect(await store.getCursor('registry')).toBe('cur-1');
-      expect((await store.latestAttestation('o', 'r'))?.commit).toBe('c'.repeat(40));
+      // An older approval replayed after the retraction changes nothing.
+      await store.applyEvents([events[1]!], { name: 'registry', value: 'cur-2' });
+      expect(await store.getIndicator(hash('b'))).toMatchObject({ status: 'retracted', retractReason: hash('f') });
+      expect(await store.latestAttestation(repoId)).toMatchObject({ retractedBy: 'GA', retractReason: hash('f') });
+      expect((await store.listIndicators(null, 10)).items).toEqual([]);
 
-      await store.applyEvents([{ ...meta('0005'), type: 'revoke', kind: 'hash', value: 'b'.repeat(64) }], { name: 'registry', value: 'cur-2' });
-      expect((await store.getIndicator('hash', 'b'.repeat(64)))?.active).toBe(false);
-      const page = await store.listIndicators(null, 10);
-      expect(page.items.map((i) => i.value)).toEqual(['evil']);
+      await store.resetIndex('registry');
+      expect(await store.getIndicator(hash('b'))).toBeUndefined();
+      expect(await store.latestAttestation(repoId)).toBeUndefined();
+      expect(await store.getCursor('registry')).toBeUndefined();
     });
 
-    it('pages indicators with a cursor', async () => {
-      const events = ['a1', 'a2', 'a3'].map((v, i) => ({
-        ...meta(`00${i}`),
+    it('pages active indicators with a cursor', async () => {
+      const events = ['1', '2', '3'].map((c, i) => ({
+        ...meta(`000${i}`),
         type: 'approve' as const,
-        kind: 'package' as const,
-        value: v,
-        campaign: 'C',
-        evidence: [],
+        hash: hash(c),
+        curator: 'G',
+        approvals: 2,
+        status: 'active' as const,
       }));
       await store.applyEvents(events, { name: 'registry', value: 'c' });
       const first = await store.listIndicators(null, 2);
-      expect(first.items.map((i) => i.value)).toEqual(['a1', 'a2']);
+      expect(first.items.map((i) => i.hash)).toEqual([hash('1'), hash('2')]);
       const second = await store.listIndicators(first.nextCursor, 2);
-      expect(second.items.map((i) => i.value)).toEqual(['a3']);
+      expect(second.items.map((i) => i.hash)).toEqual([hash('3')]);
       expect(second.nextCursor).toBeNull();
     });
   });
