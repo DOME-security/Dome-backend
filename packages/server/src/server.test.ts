@@ -49,6 +49,22 @@ const signed = (event: string, payload: unknown, secret = SECRET) => {
   });
 };
 
+describe('GET /v1/scans/:id', () => {
+  it('rejects ids that are not UUIDs before they reach the database', async () => {
+    expect((await app.inject({ url: '/v1/scans/not-a-uuid' })).statusCode).toBe(400);
+  });
+
+  it('serializes the stored report without dropping fields, so its hash still verifies', async () => {
+    const { job } = await store.enqueueScan({ repoUrl: 'https://github.com/o/r', owner: 'o', repo: 'r', source: 'api' });
+    await store.claimScan('w', 60_000, 3);
+    const report = { ...result, extra: { kept: true }, findings: [{ ruleId: 'DOME-VSC-001', relatedRules: [], severity: 'review', reasonKey: 'folderOpen', reason: 'R.', locations: [{ path: 'a', line: 1, future: 1 }] }] } as unknown as ScanResult;
+    await store.completeScan(job.id, report, { attestable: false });
+    const body = (await app.inject({ url: `/v1/scans/${job.id}` })).json();
+    expect(body.report).toEqual(JSON.parse(JSON.stringify(report)));
+    expect(reportHash(body.report)).toBe(body.reportHash);
+  });
+});
+
 describe('POST /v1/scans', () => {
   it('queues a scan of a public GitHub repository', async () => {
     const res = await app.inject({ method: 'POST', url: '/v1/scans', payload: { url: 'https://github.com/dome-security/dome-backend' } });
