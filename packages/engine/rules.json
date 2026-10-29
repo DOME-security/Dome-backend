@@ -102,7 +102,8 @@
       "reasons": {
         "hostCommand": "The initializeCommand hook runs on the host machine, outside the container, before the container starts.",
         "lifecycle": "A dev container command runs automatically when the container is created, started or attached.",
-        "payload": "A dev container command downloads and runs code, or runs a file that is not a script with Node."
+        "payload": "A dev container command downloads and runs code, or runs a file that is not a script with Node.",
+        "pinnedDownload": "A dev container command downloads a script pinned to an exact commit and runs it."
       },
       "docsUrl": "https://github.com/dome-security/dome-backend/blob/main/docs/rules/DOME-DEV-001.md"
     },
