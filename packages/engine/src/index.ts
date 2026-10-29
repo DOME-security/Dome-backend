@@ -2,6 +2,7 @@ export * from './types.js';
 export { VERSION } from './version.js';
 export { scan, exitCodeFor, verdictOf, DEFAULT_MAX_FILE_BYTES, type ScanOptions } from './scan.js';
 export { sha256Hex } from './hash.js';
+export { rulesetHash } from './ruleset.js';
 export { CONFIG_PATH, ConfigError, EMPTY_CONFIG, parseConfig, type AllowEntry, type DomeConfig } from './config.js';
 export { grade, isIndicatorRule, AUTORUN_SURFACES, PAYLOAD_PARTNERS } from './grade.js';
 export { ALL_RULES, rulesIn, ruleMeta } from './rules/index.js';

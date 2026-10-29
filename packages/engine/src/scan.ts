@@ -5,6 +5,7 @@ import { UncheckableInput } from './parsers/errors.js';
 import { sanitizePath } from './report/common.js';
 import { decodeText, LineIndex } from './parsers/text.js';
 import { ALL_RULES } from './rules/index.js';
+import { rulesetHash } from './ruleset.js';
 import type { Rule, RuleContext } from './rules/rule.js';
 import type { FileSource, TreeEntry } from './source/types.js';
 import { EMPTY_INTEL, type Finding, type IncompleteRead, type IntelSet, type Location, type ScanResult, type Severity, type Verdict } from './types.js';
@@ -210,7 +211,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   // (JSON, the API, the stored report and its hash) gets them sanitized.
   for (const f of findings) f.locations = f.locations.map((l) => ({ ...l, path: sanitizePath(l.path) }));
   return {
-    tool: { name: 'dome', version: VERSION },
+    tool: { name: 'dome', version: VERSION, rulesHash: rulesetHash(rules, intel) },
     target: sanitizePath(options.source.label),
     scope: options.diff ? 'diff' : 'full',
     verdict: verdictOf(findings, incompleteList),

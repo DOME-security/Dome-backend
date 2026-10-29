@@ -77,7 +77,8 @@ export interface IncompleteRead {
 }
 
 export interface ScanResult {
-  tool: { name: 'dome'; version: string };
+  /** `rulesHash`: SHA-256 of the rule and indicator set used (see `rulesetHash`). */
+  tool: { name: 'dome'; version: string; rulesHash: string };
   target: string;
   scope: 'full' | 'diff';
   verdict: Verdict;

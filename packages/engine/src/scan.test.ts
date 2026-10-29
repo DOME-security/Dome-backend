@@ -153,6 +153,21 @@ describe('scan', () => {
   });
 });
 
+describe('rulesetHash', () => {
+  it('is recorded in every result and changes with the rules or indicators', async () => {
+    const { rulesetHash } = await import('./ruleset.js');
+    const { EMPTY_INTEL } = await import('./types.js');
+    const a = await scanFiles({ 'README.md': '' });
+    expect(a.tool.rulesHash).toBe(rulesetHash(ALL_RULES, EMPTY_INTEL));
+    expect(a.tool.rulesHash).toMatch(/^[0-9a-f]{64}$/);
+    const withIntel = await scanFiles({ 'README.md': '' }, { intel: { packages: new Set(['dome-fixture-pkg']) } });
+    expect(withIntel.tool.rulesHash).not.toBe(a.tool.rulesHash);
+    expect(rulesetHash(ALL_RULES.slice(1), EMPTY_INTEL)).not.toBe(a.tool.rulesHash);
+    const reordered = { ...EMPTY_INTEL, domains: ['b.invalid', 'a.invalid'] };
+    expect(rulesetHash(ALL_RULES, reordered)).toBe(rulesetHash([...ALL_RULES].reverse(), { ...EMPTY_INTEL, domains: ['a.invalid', 'b.invalid'] }));
+  });
+});
+
 describe('VERSION', () => {
   it('matches package.json', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
