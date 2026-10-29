@@ -37,6 +37,44 @@ describe('checkFont', () => {
     expect(checkFont(woff).valid).toBe(false);
   });
 
+  describe('WOFF2', () => {
+    const edit = (fn: (b: Uint8Array, v: DataView) => void) => {
+      const b = buildWoff2();
+      fn(b, new DataView(b.buffer));
+      return checkFont(b).valid;
+    };
+
+    it('rejects an unknown flavor or a non-zero reserved field', () => {
+      expect(edit((_b, v) => v.setUint32(4, 0x41414141))).toBe(false);
+      expect(edit((_b, v) => v.setUint16(14, 1))).toBe(false);
+    });
+
+    it('rejects a malformed table directory', () => {
+      expect(edit((b) => (b[49] = 0x80))).toBe(false); // UIntBase128 with a leading zero byte
+      expect(edit((b) => (b[48] = 63))).toBe(false); // arbitrary tag that is not printable
+      expect(edit((b) => (b[48] = 0x41))).toBe(false); // transformed head needs a transformLength
+    });
+
+    it('rejects a compressed stream or metadata block outside the file', () => {
+      expect(edit((_b, v) => v.setUint32(20, 1000))).toBe(false);
+      expect(edit((_b, v) => {
+        v.setUint32(28, 60);
+        v.setUint32(32, 1000);
+      })).toBe(false);
+    });
+
+    it('rejects a copied header whose table directory runs past the end', () => {
+      const script = text('/* DOME_FIXTURE */');
+      const b = new Uint8Array(48 + script.length);
+      b.set(buildWoff2().subarray(0, 48));
+      b.set(script, 48);
+      const v = new DataView(b.buffer);
+      v.setUint32(8, b.length);
+      v.setUint16(12, 40);
+      expect(checkFont(b).valid).toBe(false);
+    });
+  });
+
   it('recognizes git LFS pointers and empty files', () => {
     expect(checkFont(text('version https://git-lfs.github.com/spec/v1\noid sha256:abc\nsize 10\n'))).toEqual({
       valid: false,
