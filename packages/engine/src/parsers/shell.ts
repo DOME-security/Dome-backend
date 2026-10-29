@@ -209,7 +209,9 @@ export function parseShellDeep(text: string, maxDepth = 3): ParsedShell[] {
 function innerCommandString(words: string[]): string | undefined {
   const prog = programName(words[0]);
   if (SHELLS.has(prog)) {
-    const idx = words.findIndex((w, i) => i > 0 && /^-[a-z]*c[a-z]*$/.test(w));
+    // A flag cluster containing `c` (`-c`, `-lc`, `-ec`). Not a single regex with
+    // two `[a-z]*` around the `c`: that backtracks quadratically on long words.
+    const idx = words.findIndex((w, i) => i > 0 && /^-[a-z]+$/.test(w) && w.includes('c'));
     return idx === -1 ? undefined : words[idx + 1];
   }
   if (prog === 'cmd') {
