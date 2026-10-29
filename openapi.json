@@ -1,0 +1,1322 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Dome API",
+    "version": "0.1.0",
+    "description": "Scan queue, scan results, repository summaries and the indicator feed. Generated from the server route schemas.",
+    "license": {
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
+    }
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Liveness check",
+        "tags": [
+          "meta"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/indicators": {
+      "get": {
+        "summary": "Page through active registry indicators",
+        "description": "The source `dome intel update` reads.",
+        "tags": [
+          "indicators"
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "indicators",
+                    "nextCursor"
+                  ],
+                  "properties": {
+                    "indicators": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "kind",
+                          "value",
+                          "campaign",
+                          "evidence",
+                          "fileKind"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "hash"
+                          },
+                          "value": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{64}$"
+                          },
+                          "campaign": {
+                            "type": "string"
+                          },
+                          "evidence": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "`sha256:<hex>` digest of the published advisory and `stellar-tx:<hex>`, the registry transaction behind the current status."
+                          },
+                          "fileKind": {
+                            "type": [
+                              "null",
+                              "string"
+                            ],
+                            "enum": [
+                              "task",
+                              "font",
+                              "config",
+                              "script",
+                              "package",
+                              null
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/indicators/{sha256}": {
+      "get": {
+        "summary": "Is this file hash a known-bad indicator?",
+        "description": "Hash the file locally (SHA-256) and look the digest up; the file itself is never uploaded.",
+        "tags": [
+          "indicators"
+        ],
+        "parameters": [
+          {
+            "name": "sha256",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{64}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "sha256",
+                    "known"
+                  ],
+                  "properties": {
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "known": {
+                      "type": "boolean",
+                      "description": "True only for indicators the registry curators activated."
+                    },
+                    "campaign": {
+                      "type": "string"
+                    },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "`sha256:<hex>` digest of the published advisory and `stellar-tx:<hex>`, the registry transaction behind the current status."
+                    },
+                    "fileKind": {
+                      "type": [
+                        "null",
+                        "string"
+                      ],
+                      "enum": [
+                        "task",
+                        "font",
+                        "config",
+                        "script",
+                        "package",
+                        null
+                      ]
+                    },
+                    "ledger": {
+                      "type": "integer"
+                    },
+                    "txHash": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/repos/{owner}/{repo}": {
+      "get": {
+        "summary": "A repository's latest scan and on-chain attestation",
+        "tags": [
+          "repos"
+        ],
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9-]{1,39}$"
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(?!\\.\\.?$)[A-Za-z0-9._-]{1,100}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "repository",
+                    "latestScan",
+                    "attestation"
+                  ],
+                  "properties": {
+                    "repository": {
+                      "type": "object",
+                      "required": [
+                        "owner",
+                        "repo"
+                      ],
+                      "properties": {
+                        "owner": {
+                          "type": "string"
+                        },
+                        "repo": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "latestScan": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "repository",
+                            "ref",
+                            "commit",
+                            "pullRequest",
+                            "status",
+                            "verdict",
+                            "createdAt",
+                            "startedAt",
+                            "finishedAt",
+                            "attestation"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "repository": {
+                              "type": "object",
+                              "required": [
+                                "owner",
+                                "repo",
+                                "url"
+                              ],
+                              "properties": {
+                                "owner": {
+                                  "type": "string"
+                                },
+                                "repo": {
+                                  "type": "string"
+                                },
+                                "url": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "ref": {
+                              "type": [
+                                "null",
+                                "string"
+                              ]
+                            },
+                            "commit": {
+                              "type": [
+                                "null",
+                                "string"
+                              ]
+                            },
+                            "pullRequest": {
+                              "type": [
+                                "null",
+                                "integer"
+                              ]
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "queued",
+                                "running",
+                                "done",
+                                "failed"
+                              ]
+                            },
+                            "verdict": {
+                              "type": [
+                                "null",
+                                "string"
+                              ],
+                              "enum": [
+                                "clean",
+                                "review",
+                                "block",
+                                "incomplete",
+                                null
+                              ]
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "startedAt": {
+                              "type": [
+                                "null",
+                                "string"
+                              ],
+                              "format": "date-time"
+                            },
+                            "finishedAt": {
+                              "type": [
+                                "null",
+                                "string"
+                              ],
+                              "format": "date-time"
+                            },
+                            "error": {
+                              "type": [
+                                "null",
+                                "string"
+                              ],
+                              "description": "Fixed wording; present when status is failed."
+                            },
+                            "report": {
+                              "type": "object",
+                              "additionalProperties": true,
+                              "description": "The full scan report. Reasons are fixed text keyed by rule ID (see packages/engine/rules.json).",
+                              "required": [
+                                "tool",
+                                "target",
+                                "scope",
+                                "verdict",
+                                "findings",
+                                "incomplete",
+                                "stats"
+                              ],
+                              "properties": {
+                                "tool": {
+                                  "type": "object",
+                                  "additionalProperties": true,
+                                  "required": [
+                                    "name",
+                                    "version"
+                                  ],
+                                  "properties": {
+                                    "name": {
+                                      "type": "string",
+                                      "const": "dome"
+                                    },
+                                    "version": {
+                                      "type": "string"
+                                    },
+                                    "rulesHash": {
+                                      "type": "string",
+                                      "pattern": "^[0-9a-f]{64}$"
+                                    }
+                                  }
+                                },
+                                "target": {
+                                  "type": "string"
+                                },
+                                "scope": {
+                                  "type": "string",
+                                  "enum": [
+                                    "full",
+                                    "diff"
+                                  ]
+                                },
+                                "verdict": {
+                                  "type": "string",
+                                  "enum": [
+                                    "clean",
+                                    "review",
+                                    "block",
+                                    "incomplete"
+                                  ]
+                                },
+                                "findings": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": true,
+                                    "required": [
+                                      "ruleId",
+                                      "relatedRules",
+                                      "severity",
+                                      "reasonKey",
+                                      "reason",
+                                      "locations"
+                                    ],
+                                    "properties": {
+                                      "ruleId": {
+                                        "type": "string",
+                                        "pattern": "^DOME-[A-Z]{3}-\\d{3}$"
+                                      },
+                                      "relatedRules": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "severity": {
+                                        "type": "string",
+                                        "enum": [
+                                          "info",
+                                          "review",
+                                          "block"
+                                        ]
+                                      },
+                                      "reasonKey": {
+                                        "type": "string"
+                                      },
+                                      "reason": {
+                                        "type": "string"
+                                      },
+                                      "locations": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "additionalProperties": true,
+                                          "required": [
+                                            "path"
+                                          ],
+                                          "properties": {
+                                            "path": {
+                                              "type": "string"
+                                            },
+                                            "line": {
+                                              "type": "integer"
+                                            },
+                                            "column": {
+                                              "type": "integer"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "fixture": {
+                                        "type": "boolean"
+                                      },
+                                      "allowed": {
+                                        "type": "boolean"
+                                      }
+                                    }
+                                  }
+                                },
+                                "incomplete": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "additionalProperties": true,
+                                    "required": [
+                                      "path",
+                                      "reason"
+                                    ],
+                                    "properties": {
+                                      "path": {
+                                        "type": "string"
+                                      },
+                                      "reason": {
+                                        "type": "string",
+                                        "enum": [
+                                          "too-large",
+                                          "read-error",
+                                          "invalid-config",
+                                          "unsupported-entry",
+                                          "parse-error",
+                                          "rule-error"
+                                        ]
+                                      },
+                                      "ruleId": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                },
+                                "stats": {
+                                  "type": "object",
+                                  "additionalProperties": true,
+                                  "properties": {
+                                    "filesInTree": {
+                                      "type": "integer"
+                                    },
+                                    "filesInScope": {
+                                      "type": "integer"
+                                    },
+                                    "rulesRun": {
+                                      "type": "integer"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "reportHash": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$",
+                              "description": "SHA-256 of the canonical JSON of `report`, as published on chain."
+                            },
+                            "attestation": {
+                              "type": [
+                                "null",
+                                "object"
+                              ],
+                              "required": [
+                                "tx"
+                              ],
+                              "properties": {
+                                "tx": {
+                                  "type": "string"
+                                }
+                              },
+                              "description": "The registry transaction that published this scan, once it has."
+                            }
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "attestation": {
+                      "type": [
+                        "null",
+                        "object"
+                      ],
+                      "description": "The newest Dome Registry attestation for the repository, as indexed. A retracted one is still returned, marked retracted.",
+                      "required": [
+                        "index",
+                        "commit",
+                        "verdict",
+                        "reportHash",
+                        "rulesHash",
+                        "scanner",
+                        "attester",
+                        "ledger",
+                        "txHash",
+                        "closedAt",
+                        "retracted"
+                      ],
+                      "properties": {
+                        "index": {
+                          "type": "integer"
+                        },
+                        "commit": {
+                          "type": "string"
+                        },
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "clean",
+                            "review",
+                            "block",
+                            "unreadable"
+                          ]
+                        },
+                        "reportHash": {
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        },
+                        "rulesHash": {
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        },
+                        "scanner": {
+                          "type": [
+                            "null",
+                            "integer"
+                          ]
+                        },
+                        "attester": {
+                          "type": "string"
+                        },
+                        "ledger": {
+                          "type": "integer"
+                        },
+                        "txHash": {
+                          "type": "string"
+                        },
+                        "closedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "retracted": {
+                          "type": "boolean"
+                        },
+                        "retractedBy": {
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        },
+                        "retractReason": {
+                          "type": [
+                            "null",
+                            "string"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/scans": {
+      "post": {
+        "summary": "Queue a scan of a public GitHub repository",
+        "description": "Scans the default branch (or `ref`). Returns 200 with the existing scan when an identical one is already queued or running.",
+        "tags": [
+          "scans"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "status",
+                    "links"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "done",
+                        "failed"
+                      ]
+                    },
+                    "links": {
+                      "type": "object",
+                      "required": [
+                        "self"
+                      ],
+                      "properties": {
+                        "self": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "status",
+                    "links"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "done",
+                        "failed"
+                      ]
+                    },
+                    "links": {
+                      "type": "object",
+                      "required": [
+                        "self"
+                      ],
+                      "properties": {
+                        "self": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "description": "https://github.com/<owner>/<repo>"
+                  },
+                  "ref": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "description": "Branch or tag name"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/scans/{id}": {
+      "get": {
+        "summary": "Get a scan and, once done, its report",
+        "tags": [
+          "scans"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "repository",
+                    "ref",
+                    "commit",
+                    "pullRequest",
+                    "status",
+                    "verdict",
+                    "createdAt",
+                    "startedAt",
+                    "finishedAt",
+                    "attestation"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "repository": {
+                      "type": "object",
+                      "required": [
+                        "owner",
+                        "repo",
+                        "url"
+                      ],
+                      "properties": {
+                        "owner": {
+                          "type": "string"
+                        },
+                        "repo": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "ref": {
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    },
+                    "commit": {
+                      "type": [
+                        "null",
+                        "string"
+                      ]
+                    },
+                    "pullRequest": {
+                      "type": [
+                        "null",
+                        "integer"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued",
+                        "running",
+                        "done",
+                        "failed"
+                      ]
+                    },
+                    "verdict": {
+                      "type": [
+                        "null",
+                        "string"
+                      ],
+                      "enum": [
+                        "clean",
+                        "review",
+                        "block",
+                        "incomplete",
+                        null
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "startedAt": {
+                      "type": [
+                        "null",
+                        "string"
+                      ],
+                      "format": "date-time"
+                    },
+                    "finishedAt": {
+                      "type": [
+                        "null",
+                        "string"
+                      ],
+                      "format": "date-time"
+                    },
+                    "error": {
+                      "type": [
+                        "null",
+                        "string"
+                      ],
+                      "description": "Fixed wording; present when status is failed."
+                    },
+                    "report": {
+                      "type": "object",
+                      "additionalProperties": true,
+                      "description": "The full scan report. Reasons are fixed text keyed by rule ID (see packages/engine/rules.json).",
+                      "required": [
+                        "tool",
+                        "target",
+                        "scope",
+                        "verdict",
+                        "findings",
+                        "incomplete",
+                        "stats"
+                      ],
+                      "properties": {
+                        "tool": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "required": [
+                            "name",
+                            "version"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "const": "dome"
+                            },
+                            "version": {
+                              "type": "string"
+                            },
+                            "rulesHash": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}$"
+                            }
+                          }
+                        },
+                        "target": {
+                          "type": "string"
+                        },
+                        "scope": {
+                          "type": "string",
+                          "enum": [
+                            "full",
+                            "diff"
+                          ]
+                        },
+                        "verdict": {
+                          "type": "string",
+                          "enum": [
+                            "clean",
+                            "review",
+                            "block",
+                            "incomplete"
+                          ]
+                        },
+                        "findings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true,
+                            "required": [
+                              "ruleId",
+                              "relatedRules",
+                              "severity",
+                              "reasonKey",
+                              "reason",
+                              "locations"
+                            ],
+                            "properties": {
+                              "ruleId": {
+                                "type": "string",
+                                "pattern": "^DOME-[A-Z]{3}-\\d{3}$"
+                              },
+                              "relatedRules": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "severity": {
+                                "type": "string",
+                                "enum": [
+                                  "info",
+                                  "review",
+                                  "block"
+                                ]
+                              },
+                              "reasonKey": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "locations": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "additionalProperties": true,
+                                  "required": [
+                                    "path"
+                                  ],
+                                  "properties": {
+                                    "path": {
+                                      "type": "string"
+                                    },
+                                    "line": {
+                                      "type": "integer"
+                                    },
+                                    "column": {
+                                      "type": "integer"
+                                    }
+                                  }
+                                }
+                              },
+                              "fixture": {
+                                "type": "boolean"
+                              },
+                              "allowed": {
+                                "type": "boolean"
+                              }
+                            }
+                          }
+                        },
+                        "incomplete": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true,
+                            "required": [
+                              "path",
+                              "reason"
+                            ],
+                            "properties": {
+                              "path": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "too-large",
+                                  "read-error",
+                                  "invalid-config",
+                                  "unsupported-entry",
+                                  "parse-error",
+                                  "rule-error"
+                                ]
+                              },
+                              "ruleId": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "stats": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "properties": {
+                            "filesInTree": {
+                              "type": "integer"
+                            },
+                            "filesInScope": {
+                              "type": "integer"
+                            },
+                            "rulesRun": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "reportHash": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "SHA-256 of the canonical JSON of `report`, as published on chain."
+                    },
+                    "attestation": {
+                      "type": [
+                        "null",
+                        "object"
+                      ],
+                      "required": [
+                        "tx"
+                      ],
+                      "properties": {
+                        "tx": {
+                          "type": "string"
+                        }
+                      },
+                      "description": "The registry transaction that published this scan, once it has."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/github": {
+      "post": {
+        "summary": "GitHub App webhook (push and pull_request events)",
+        "description": "Authenticated by the X-Hub-Signature-256 HMAC over the raw body; not for browser clients.",
+        "tags": [
+          "webhooks"
+        ],
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scan": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "ignored": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

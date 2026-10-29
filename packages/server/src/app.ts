@@ -1,5 +1,5 @@
 import rateLimit from '@fastify/rate-limit';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type RouteOptions } from 'fastify';
 import { indicatorRoutes } from './routes/indicators.js';
 import { repoRoutes } from './routes/repos.js';
 import { scanRoutes } from './routes/scans.js';
@@ -13,6 +13,8 @@ export interface AppOptions {
   trustProxy?: boolean;
   scanRateLimitPerMinute?: number;
   logger?: boolean;
+  /** Called for every route as it is registered; the OpenAPI generator uses it. */
+  onRoute?: (route: RouteOptions) => void;
 }
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
@@ -24,6 +26,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     ajv: { customOptions: { removeAdditional: false, coerceTypes: 'array' } },
   });
 
+  if (options.onRoute) app.addHook('onRoute', options.onRoute);
   await app.register(rateLimit, { global: false });
 
   const origins = new Set(options.corsOrigins ?? []);
@@ -51,7 +54,17 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     reply.code(status).send({ error: status >= 500 ? 'internal error' : error.message });
   });
 
-  app.get('/healthz', async () => ({ ok: true }));
+  app.get(
+    '/healthz',
+    {
+      schema: {
+        summary: 'Liveness check',
+        tags: ['meta'],
+        response: { 200: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' } } } },
+      },
+    },
+    async () => ({ ok: true }),
+  );
   scanRoutes(app, options.store, options.scanRateLimitPerMinute ?? 10);
   repoRoutes(app, options.store);
   indicatorRoutes(app, options.store);

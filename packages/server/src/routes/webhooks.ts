@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { scanForEvent, verifySignature } from '../github.js';
+import { errorSchema } from '../schemas.js';
 import type { Store } from '../store/types.js';
 
 export function webhookRoutes(app: FastifyInstance, store: Store, secret: string | undefined): void {
@@ -10,7 +11,17 @@ export function webhookRoutes(app: FastifyInstance, store: Store, secret: string
       done(null, body),
     );
 
-    scoped.post('/v1/webhooks/github', { bodyLimit: 26 * 1024 * 1024 }, async (req, reply) => {
+    const accepted = {
+      type: 'object',
+      properties: { scan: { type: 'string', format: 'uuid' }, ignored: { type: 'string' } },
+    } as const;
+    const schema = {
+      summary: 'GitHub App webhook (push and pull_request events)',
+      description: 'Authenticated by the X-Hub-Signature-256 HMAC over the raw body; not for browser clients.',
+      tags: ['webhooks'],
+      response: { 202: accepted, 400: errorSchema, 401: errorSchema, 503: errorSchema },
+    };
+    scoped.post('/v1/webhooks/github', { bodyLimit: 26 * 1024 * 1024, schema }, async (req, reply) => {
       if (!secret) return reply.code(503).send({ error: 'webhooks are not configured' });
       const body = req.body as Buffer;
       if (!Buffer.isBuffer(body) || !verifySignature(secret, body, req.headers['x-hub-signature-256'] as string | undefined)) {
