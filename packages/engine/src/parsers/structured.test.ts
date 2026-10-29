@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { UncheckableInput } from './errors.js';
+import { MAX_NESTING, nestingDepth, parseJsonc } from './jsonc.js';
 import { parseDevcontainer, parsePackageJson } from './manifests.js';
+import { decodeText } from './text.js';
 import { resolveRepoPath } from './text.js';
 import { parseTasks, setting, settingsNode } from './vscode.js';
 import { parseWorkflow } from './workflow.js';
@@ -86,7 +89,39 @@ describe('parseWorkflow', () => {
   it('refuses alias bombs instead of expanding them', () => {
     const bomb = ['a: &a ["x","x","x","x","x","x","x","x","x"]'];
     for (let i = 0; i < 8; i++) bomb.push(`${String.fromCharCode(98 + i)}: &${String.fromCharCode(98 + i)} [*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)},*${String.fromCharCode(97 + i)}]`);
-    expect(parseWorkflow(bomb.join('\n'))).toBeUndefined();
+    expect(() => parseWorkflow(bomb.join('\n'))).toThrow(UncheckableInput);
+  });
+
+  it('throws for YAML it cannot read instead of returning nothing', () => {
+    expect(() => parseWorkflow('on: push\njobs: [\n')).toThrow(UncheckableInput);
+    expect(() => parseWorkflow(`${'['.repeat(100_000)}`)).toThrow(UncheckableInput);
+  });
+
+  it('returns undefined for valid YAML that is not a workflow mapping', () => {
+    expect(parseWorkflow('')).toBeUndefined();
+    expect(parseWorkflow('just a string')).toBeUndefined();
+  });
+});
+
+describe('parseJsonc', () => {
+  it('measures nesting outside strings and comments', () => {
+    expect(nestingDepth('{"a":[1,{"b":2}]}')).toBe(3);
+    expect(nestingDepth('{"a":"[[[[[[", // [[[[\n /* {{{{ */ "b": 1}')).toBe(1);
+    // An escaped quote stays inside the string; an escaped backslash does not.
+    expect(nestingDepth(String.raw`"\"[`)).toBe(0);
+    expect(nestingDepth(String.raw`"\\"[`)).toBe(1);
+  });
+
+  it('refuses input nested deeper than MAX_NESTING', () => {
+    expect(parseJsonc(`${'['.repeat(MAX_NESTING)}${']'.repeat(MAX_NESTING)}`).root).toBeDefined();
+    expect(() => parseJsonc('['.repeat(MAX_NESTING + 1))).toThrow(UncheckableInput);
+  });
+});
+
+describe('decodeText', () => {
+  it('strips a UTF-8 byte order mark', () => {
+    const bytes = new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode('{"a":1}')]);
+    expect(decodeText(bytes)).toBe('{"a":1}');
   });
 });
 

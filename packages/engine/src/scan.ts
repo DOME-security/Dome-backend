@@ -1,6 +1,7 @@
 import { CONFIG_PATH, ConfigError, EMPTY_CONFIG, parseConfig, type DomeConfig } from './config.js';
 import { grade } from './grade.js';
 import { sha256Hex } from './hash.js';
+import { UncheckableInput } from './parsers/errors.js';
 import { decodeText, LineIndex } from './parsers/text.js';
 import { ALL_RULES } from './rules/index.js';
 import type { Rule, RuleContext } from './rules/rule.js';
@@ -141,14 +142,22 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
 
   const raw: Finding[] = [];
   for (const rule of rules) {
+    // The file a rule read last, so a failure can be pinned on it.
+    let current: string | undefined;
     const ctx: RuleContext = {
       scope: options.diff ? 'diff' : 'full',
       targets,
       tree,
       intel,
       maxFileBytes: maxBytes,
-      readText: (p) => files.readText(p),
-      readBytes: (p) => files.readBytes(p),
+      readText: (p) => {
+        current = p;
+        return files.readText(p);
+      },
+      readBytes: (p) => {
+        current = p;
+        return files.readBytes(p);
+      },
       readBaseText: async (p) => (baseFiles ? baseFiles.readText(p) : undefined),
       isChanged: (p) => !changed || changed.has(p),
       locate: (p, offset) => files.locate(p, offset),
@@ -164,8 +173,19 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
           locations: Array.isArray(locations) ? locations : [locations],
         });
       },
+      couldNotCheck: (path, reason) => {
+        if (!incomplete.has(path)) incomplete.set(path, { path, reason });
+      },
     };
-    await rule.run(ctx);
+    try {
+      await rule.run(ctx);
+    } catch (error) {
+      // A rule that cannot finish (a refused or hostile input, or a bug) must
+      // not abort the scan or let it pass: the file is reported as not checked.
+      const path = current ?? '.';
+      const reason = error instanceof UncheckableInput ? 'parse-error' : 'rule-error';
+      if (!incomplete.has(path)) incomplete.set(path, { path, reason, ruleId: rule.meta.id });
+    }
   }
 
   const findings = await grade({

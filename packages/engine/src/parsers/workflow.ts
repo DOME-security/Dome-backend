@@ -1,4 +1,5 @@
 import { parseDocument } from 'yaml';
+import { UncheckableInput } from './errors.js';
 
 export function isWorkflowFile(p: string): boolean {
   return /^\.github\/workflows\/[^/]+\.ya?ml$/.test(p);
@@ -18,17 +19,19 @@ export interface Workflow {
 
 /**
  * Parses a GitHub Actions workflow. Alias expansion is capped so a crafted
- * file cannot blow up memory. Returns undefined for files that are not valid
- * YAML mappings.
+ * file cannot blow up memory. Returns undefined for valid YAML that is not a
+ * mapping (GitHub would not run it) and throws UncheckableInput for YAML this
+ * parser cannot read, so the file is reported as not checked rather than clean.
  */
 export function parseWorkflow(text: string): Workflow | undefined {
-  const doc = parseDocument(text, { strict: false, uniqueKeys: false, prettyErrors: false });
-  if (doc.errors.length) return undefined;
   let data: unknown;
   try {
+    const doc = parseDocument(text, { strict: false, uniqueKeys: false, prettyErrors: false });
+    if (doc.errors.length) throw new UncheckableInput('invalid YAML');
     data = doc.toJS({ maxAliasCount: 50 });
-  } catch {
-    return undefined;
+  } catch (error) {
+    if (error instanceof UncheckableInput) throw error;
+    throw new UncheckableInput('YAML could not be read');
   }
   if (!data || typeof data !== 'object') return undefined;
   const on = (data as Record<string, unknown>).on ?? (data as Record<string, unknown>).true;

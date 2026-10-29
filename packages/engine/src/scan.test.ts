@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { scanFiles } from './__fixtures__/run-rule.js';
+import { ALL_RULES } from './rules/index.js';
+import type { Rule } from './rules/rule.js';
 import { exitCodeFor, scan } from './scan.js';
 import { MemorySource } from './source/memory.js';
 import { VERSION } from './version.js';
@@ -103,6 +105,40 @@ describe('scan', () => {
   it('records symlinked auto-run files as not checked', async () => {
     const result = await scan({ source: new MemorySource({}, 'memory', ['.vscode/tasks.json']) });
     expect(result.verdict).toBe('incomplete');
+  });
+
+  it('reports a file nested too deeply to parse as could-not-check, not a crash', async () => {
+    const result = await scanFiles({ '.vscode/tasks.json': '['.repeat(200_000) });
+    expect(result.verdict).toBe('incomplete');
+    expect(result.incomplete[0]).toMatchObject({ path: '.vscode/tasks.json', reason: 'parse-error' });
+  });
+
+  it('reports a workflow it cannot parse as could-not-check, not clean', async () => {
+    const result = await scanFiles({ '.github/workflows/x.yml': 'on: push\njobs:\n  a:\n    x: [\n' });
+    expect(result.verdict).toBe('incomplete');
+    expect(result.incomplete).toEqual([{ path: '.github/workflows/x.yml', reason: 'parse-error' }]);
+  });
+
+  it('keeps scanning when a rule fails, and names the rule and file', async () => {
+    const broken: Rule = {
+      meta: { ...ALL_RULES[0]!.meta, id: 'DOME-TST-001' },
+      async run(ctx) {
+        await ctx.readText('a.txt');
+        throw new Error('boom');
+      },
+    };
+    const result = await scan({ source: new MemorySource({ 'a.txt': 'x', '.vscode/tasks.json': folderOpen }), rules: [broken, ...ALL_RULES] });
+    expect(result.verdict).toBe('incomplete');
+    expect(result.incomplete).toEqual([{ path: 'a.txt', reason: 'rule-error', ruleId: 'DOME-TST-001' }]);
+    expect(result.findings.map((f) => f.ruleId)).toContain('DOME-VSC-001');
+  });
+
+  it('reads files that start with a UTF-8 byte order mark', async () => {
+    const bom = new Uint8Array([0xef, 0xbb, 0xbf]);
+    const tasks = new Uint8Array([...bom, ...new TextEncoder().encode(folderOpen)]);
+    const result = await scanFiles({ '.vscode/tasks.json': tasks });
+    expect(result.findings.map((f) => f.ruleId)).toEqual(['DOME-VSC-001']);
+    expect(result.findings[0]!.locations[0]!.line).toBe(1);
   });
 
   it('prefers block over incomplete', async () => {

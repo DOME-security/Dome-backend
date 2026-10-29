@@ -1,4 +1,5 @@
-import { isWorkflowFile, parseWorkflow } from '../parsers/workflow.js';
+import { UncheckableInput } from '../parsers/errors.js';
+import { isWorkflowFile, parseWorkflow, type Workflow } from '../parsers/workflow.js';
 import { defineRule, targetsWhere } from './rule.js';
 import { REFS } from './shared.js';
 
@@ -33,7 +34,14 @@ export default defineRule(
     for (const { path } of targetsWhere(ctx, isWorkflowFile)) {
       const text = await ctx.readText(path);
       if (text === undefined) continue;
-      const wf = parseWorkflow(text);
+      let wf: Workflow | undefined;
+      try {
+        wf = parseWorkflow(text);
+      } catch (error) {
+        if (!(error instanceof UncheckableInput)) throw error;
+        ctx.couldNotCheck(path, 'parse-error');
+        continue;
+      }
       const loc = (needle: string | RegExp) => {
         const index = typeof needle === 'string' ? text.indexOf(needle) : text.search(needle);
         return ctx.locate(path, Math.max(0, index));

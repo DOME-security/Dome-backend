@@ -1,7 +1,8 @@
 import { isDevcontainerFile, isPackageJson, parseDevcontainer, parsePackageJson } from '../parsers/manifests.js';
 import { dirname, extname, isJsConfigFile, isMinifiedName, isRouteFile } from '../parsers/text.js';
 import { isTasksFile, isWorkspaceFile, parseTasks } from '../parsers/vscode.js';
-import { isWorkflowFile, parseWorkflow } from '../parsers/workflow.js';
+import { UncheckableInput } from '../parsers/errors.js';
+import { isWorkflowFile, parseWorkflow, type Workflow } from '../parsers/workflow.js';
 import type { Location, Reference } from '../types.js';
 import type { RuleContext } from './rule.js';
 
@@ -91,8 +92,16 @@ export async function executableCommands(
       }
     } else if (origins.has('workflow') && isWorkflowFile(p)) {
       const text = await ctx.readText(p);
-      const wf = text === undefined ? undefined : parseWorkflow(text);
-      if (!wf || text === undefined) continue;
+      if (text === undefined) continue;
+      let wf: Workflow | undefined;
+      try {
+        wf = parseWorkflow(text);
+      } catch (error) {
+        if (!(error instanceof UncheckableInput)) throw error;
+        ctx.couldNotCheck(p, 'parse-error');
+        continue;
+      }
+      if (!wf) continue;
       for (const step of wf.steps) {
         if (step.run === undefined) continue;
         const firstLine = step.run.split('\n', 1)[0]!.trim();
